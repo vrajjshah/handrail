@@ -5,8 +5,8 @@ import { fileURLToPath } from 'node:url';
 import { chromium, type Browser, type Page } from 'playwright';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
+import { serveSeededDemo, type FixtureServer } from '../scripts/serve-fixture.js';
 import { MemoryArtifactStore, cropToElement } from './artifacts.js';
-import { serveSeededDemo, type FixtureServer } from './__test__/serve-fixture.js';
 import { deriveApplicabilitySignals } from './signals.js';
 import { ConsoleRecorder, captureState, computePageStateId } from './state-capture.js';
 import { StateCaptureSchema, type StateCapture } from './types.js';

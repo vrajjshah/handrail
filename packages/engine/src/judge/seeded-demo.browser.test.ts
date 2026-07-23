@@ -4,10 +4,10 @@ import { fileURLToPath } from 'node:url';
 import { chromium, type Browser } from 'playwright';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { serveSeededDemo, type FixtureServer } from '../capture/__test__/serve-fixture.js';
 import { IsolatedWorld } from '../capture/isolated-world.js';
 import { ConsoleRecorder, captureState } from '../capture/state-capture.js';
 import { StateCaptureSchema, type StateCapture } from '../capture/types.js';
+import { serveSeededDemo, type FixtureServer } from '../scripts/serve-fixture.js';
 import {
   DESKTOP,
   normalizeCapture,
