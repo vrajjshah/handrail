@@ -2,7 +2,10 @@
   "fixture": "seeded-demo",
   "groundTruthVersion": 1,
   "url": "http://localhost:5178/",
-  "wcagTarget": { "version": "2.2", "level": "AA" },
+  "wcagTarget": {
+    "version": "2.2",
+    "level": "AA"
+  },
   "notes": [
     "Every entry in `expected` is a defect that was planted on purpose.",
     "Every entry in `traps` is correct code that looks defect-adjacent. Reporting one is a false positive.",
@@ -13,184 +16,304 @@
     {
       "id": "gt-001",
       "selector": "[data-gt=\"gt-001\"]",
-      "sc": ["1.1.1"],
+      "sc": [
+        "1.1.1"
+      ],
       "scPrimary": "1.1.1",
       "severity": "critical",
-      "detectableBy": ["ai-vision"],
-      "expectedCheckIds": ["ai.alt-vs-image"],
+      "detectableBy": [
+        "ai-vision"
+      ],
+      "expectedCheckIds": [
+        "ai.alt-vs-image"
+      ],
       "expectedTier": "likely",
-      "viewports": ["desktop"],
+      "viewports": [
+        "desktop"
+      ],
       "summary": "Alt text describes a football celebration; the image is a set dinner table.",
       "whyItMatters": "The flagship case for the whole product. The alt attribute is present, fluent and confidently wrong, so every rule engine marks this element as passing. A screen-reader user is told something false rather than nothing, which is worse than a missing alt. Catching it requires comparing the pixels against the claim."
     },
     {
       "id": "gt-002",
       "selector": "[data-gt=\"gt-002\"]",
-      "sc": ["1.1.1"],
+      "sc": [
+        "1.1.1"
+      ],
       "scPrimary": "1.1.1",
       "severity": "critical",
-      "detectableBy": ["deterministic"],
-      "expectedCheckIds": ["axe.image-alt"],
+      "detectableBy": [
+        "deterministic"
+      ],
+      "expectedCheckIds": [
+        "axe.image-alt"
+      ],
       "expectedTier": "violation",
-      "viewports": ["desktop"],
+      "viewports": [
+        "desktop"
+      ],
       "summary": "Informative image with no alt attribute at all.",
       "whyItMatters": "The control case. Every rule engine catches this, so it proves the deterministic layer is wired up and that the baseline is not accidentally measuring nothing."
     },
     {
       "id": "gt-003",
       "selector": "[data-gt=\"gt-003\"]",
-      "sc": ["3.3.2", "4.1.2"],
+      "sc": [
+        "3.3.2"
+      ],
       "scPrimary": "3.3.2",
       "severity": "serious",
-      "detectableBy": ["deterministic"],
-      "expectedCheckIds": ["axe.label"],
-      "expectedTier": "violation",
-      "viewports": ["desktop"],
-      "summary": "Email input labelled only by a placeholder.",
-      "whyItMatters": "The placeholder vanishes the moment the field receives input, so a user who looks away loses the only clue about what the field wanted."
+      "detectableBy": [
+        "ai-text"
+      ],
+      "expectedCheckIds": [
+        "ai.label-quality"
+      ],
+      "expectedTier": "likely",
+      "viewports": [
+        "desktop"
+      ],
+      "summary": "Email input labelled only by a placeholder — which rule engines pass.",
+      "whyItMatters": "The illustrative axe blind spot. Chromium computes the field's accessible name from the placeholder ('Email address'), so axe's label rule passes it and every rule engine reports it clean. But a placeholder is not a label: it vanishes the moment the field receives input, leaving a user who looked away with no clue what the field wanted. It takes judgment (ai.label-quality) to see that a present-but-fragile name is still a 3.3.2 failure — which is exactly the gap between a rule engine and this tool."
     },
     {
       "id": "gt-004",
       "selector": "[data-gt=\"gt-004\"]",
-      "sc": ["1.4.3"],
+      "sc": [
+        "1.4.3"
+      ],
       "scPrimary": "1.4.3",
       "severity": "serious",
-      "detectableBy": ["deterministic"],
-      "expectedCheckIds": ["axe.color-contrast"],
+      "detectableBy": [
+        "deterministic"
+      ],
+      "expectedCheckIds": [
+        "axe.color-contrast"
+      ],
       "expectedTier": "violation",
-      "viewports": ["desktop"],
-      "measured": { "contrastRatio": 3.03, "threshold": 4.5 },
+      "viewports": [
+        "desktop"
+      ],
+      "measured": {
+        "contrastRatio": 3.03,
+        "threshold": 4.5
+      },
       "summary": "Body text at #949494 on white is about 3.0:1, under the 4.5:1 minimum.",
       "whyItMatters": "Low contrast is the single most reported barrier in the wild, and it is fully mechanical, so there is no excuse for a tool to miss it."
     },
     {
       "id": "gt-005",
       "selector": "[data-gt=\"gt-005\"]",
-      "sc": ["2.4.7"],
+      "sc": [
+        "2.4.7"
+      ],
       "scPrimary": "2.4.7",
       "severity": "serious",
-      "detectableBy": ["heuristic"],
-      "expectedCheckIds": ["kbd.focus-visible"],
+      "detectableBy": [
+        "heuristic"
+      ],
+      "expectedCheckIds": [
+        "kbd.focus-visible"
+      ],
       "expectedTier": "violation",
-      "viewports": ["desktop"],
+      "viewports": [
+        "desktop"
+      ],
       "summary": "A global `outline: none` removes the focus indicator from this button.",
       "whyItMatters": "Static analysis of the stylesheet is not enough — the rule only matters if it actually wins the cascade for a focusable element. Handrail focuses the element, compares computed style, and falls back to a pixel diff with animations frozen."
     },
     {
       "id": "gt-006",
       "selector": "[data-gt=\"gt-006\"]",
-      "sc": ["2.4.4"],
+      "sc": [
+        "2.4.4"
+      ],
       "scPrimary": "2.4.4",
       "severity": "moderate",
-      "detectableBy": ["ai-text"],
-      "expectedCheckIds": ["ai.link-purpose"],
+      "detectableBy": [
+        "ai-text"
+      ],
+      "expectedCheckIds": [
+        "ai.link-purpose"
+      ],
       "expectedTier": "likely",
-      "viewports": ["desktop"],
+      "viewports": [
+        "desktop"
+      ],
       "summary": "Link text is \"Click here\", which carries no purpose out of context.",
       "whyItMatters": "Screen-reader users routinely navigate by pulling up a list of every link on the page. In that list this one reads only \"Click here\", with the sentence that gave it meaning stripped away."
     },
     {
       "id": "gt-007",
       "selector": "[data-gt=\"gt-007\"]",
-      "sc": ["1.4.10"],
+      "sc": [
+        "1.4.10"
+      ],
       "scPrimary": "1.4.10",
       "severity": "serious",
-      "detectableBy": ["heuristic"],
-      "expectedCheckIds": ["resp.reflow-320"],
+      "detectableBy": [
+        "heuristic"
+      ],
+      "expectedCheckIds": [
+        "resp.reflow-320"
+      ],
       "expectedTier": "violation",
-      "viewports": ["reflow-320"],
+      "viewports": [
+        "reflow-320"
+      ],
       "summary": "A fixed 720px-wide table forces horizontal scrolling at a 320px viewport.",
       "whyItMatters": "Two-dimensional scrolling is punishing for anyone using magnification, which is a large share of low-vision users. This one is invisible at desktop width, which is why the viewport matrix exists."
     },
     {
       "id": "gt-008",
       "selector": "[data-gt=\"gt-008\"]",
-      "sc": ["2.4.3"],
+      "sc": [
+        "2.4.3"
+      ],
       "scPrimary": "2.4.3",
       "severity": "moderate",
-      "detectableBy": ["heuristic"],
-      "expectedCheckIds": ["kbd.walk"],
+      "detectableBy": [
+        "heuristic"
+      ],
+      "expectedCheckIds": [
+        "kbd.walk"
+      ],
       "expectedTier": "violation",
-      "viewports": ["desktop"],
+      "viewports": [
+        "desktop"
+      ],
       "summary": "Positive tabindex values put Contact before Menu, against the visual order.",
       "whyItMatters": "Only walking the real tab sequence finds this. Reading the DOM in source order says the navigation is fine."
     },
     {
       "id": "gt-009",
       "selector": "[data-gt=\"gt-009\"]",
-      "sc": ["2.5.8"],
+      "sc": [
+        "2.5.8"
+      ],
       "scPrimary": "2.5.8",
       "severity": "moderate",
-      "detectableBy": ["heuristic"],
-      "expectedCheckIds": ["ptr.target-size"],
+      "detectableBy": [
+        "heuristic"
+      ],
+      "expectedCheckIds": [
+        "ptr.target-size"
+      ],
       "expectedTier": "violation",
-      "viewports": ["desktop", "mobile"],
-      "measured": { "widthPx": 18, "heightPx": 18, "threshold": 24 },
+      "viewports": [
+        "desktop",
+        "mobile"
+      ],
+      "measured": {
+        "widthPx": 18,
+        "heightPx": 18,
+        "threshold": 24
+      },
       "summary": "An 18x18 CSS-pixel button, under the 24x24 minimum.",
       "whyItMatters": "A WCAG 2.2 addition, so most tooling has not caught up. The exception ladder matters here: inline targets and spacing-compensated targets are allowed, and a check that ignores that will drown users in false positives."
     },
     {
       "id": "gt-010",
       "selector": "[data-gt=\"gt-010\"]",
-      "sc": ["1.4.1"],
+      "sc": [
+        "1.4.1"
+      ],
       "scPrimary": "1.4.1",
       "severity": "moderate",
-      "detectableBy": ["ai-vision"],
-      "expectedCheckIds": ["ai.color-only"],
+      "detectableBy": [
+        "ai-vision"
+      ],
+      "expectedCheckIds": [
+        "ai.color-only"
+      ],
       "expectedTier": "likely",
-      "viewports": ["desktop"],
+      "viewports": [
+        "desktop"
+      ],
       "summary": "Required fields are indicated by red text colour alone.",
       "whyItMatters": "Remove colour perception and the information is simply gone. There is no attribute to inspect — understanding that the colour *is* the message needs judgment."
     },
     {
       "id": "gt-011",
       "selector": "html",
-      "sc": ["3.1.1"],
+      "sc": [
+        "3.1.1"
+      ],
       "scPrimary": "3.1.1",
       "severity": "serious",
-      "detectableBy": ["deterministic"],
-      "expectedCheckIds": ["axe.html-has-lang"],
+      "detectableBy": [
+        "deterministic"
+      ],
+      "expectedCheckIds": [
+        "axe.html-has-lang"
+      ],
       "expectedTier": "violation",
-      "viewports": ["desktop"],
+      "viewports": [
+        "desktop"
+      ],
       "summary": "The document has no lang attribute.",
       "whyItMatters": "Without it a screen reader guesses the language, and an English page read with a French voice is close to unusable. Also the cheapest fix in the whole corpus, which makes it a good Tier-1 auto-fix target in Phase 4."
     },
     {
       "id": "gt-012",
       "selector": "[data-gt=\"gt-012\"]",
-      "sc": ["1.4.5"],
+      "sc": [
+        "1.4.5"
+      ],
       "scPrimary": "1.4.5",
       "severity": "moderate",
-      "detectableBy": ["ai-vision"],
-      "expectedCheckIds": ["ai.images-of-text"],
+      "detectableBy": [
+        "ai-vision"
+      ],
+      "expectedCheckIds": [
+        "ai.images-of-text"
+      ],
       "expectedTier": "likely",
-      "viewports": ["desktop"],
+      "viewports": [
+        "desktop"
+      ],
       "summary": "Opening hours are rendered as text inside an image.",
       "whyItMatters": "The alt text says \"Opening hours\" and says nothing about the hours themselves, so the actual information is unreachable — and it cannot be resized, restyled or translated either."
     },
     {
       "id": "gt-013",
       "selector": "[data-gt=\"gt-013\"]",
-      "sc": ["1.3.1"],
+      "sc": [
+        "1.3.1"
+      ],
       "scPrimary": "1.3.1",
       "severity": "minor",
-      "detectableBy": ["ai-text"],
-      "expectedCheckIds": ["ai.heading-outline"],
+      "detectableBy": [
+        "ai-text"
+      ],
+      "expectedCheckIds": [
+        "ai.heading-outline"
+      ],
       "expectedTier": "likely",
-      "viewports": ["desktop"],
+      "viewports": [
+        "desktop"
+      ],
       "summary": "The heading outline jumps from h1 to h3.",
       "whyItMatters": "Heading navigation is how many screen-reader users skim a page. A hole in the outline reads as a missing section."
     },
     {
       "id": "gt-014",
       "selector": "[data-gt=\"gt-014\"]",
-      "sc": ["2.1.2"],
+      "sc": [
+        "2.1.2"
+      ],
       "scPrimary": "2.1.2",
       "severity": "critical",
-      "detectableBy": ["heuristic"],
-      "expectedCheckIds": ["kbd.focus-trap"],
+      "detectableBy": [
+        "heuristic"
+      ],
+      "expectedCheckIds": [
+        "kbd.focus-trap"
+      ],
       "expectedTier": "violation",
-      "viewports": ["desktop"],
+      "viewports": [
+        "desktop"
+      ],
       "requiresInteraction": "Activate [data-gt=\"gt-005\"] to open the dialog.",
       "summary": "The newsletter dialog intercepts Tab and Shift+Tab and cycles focus between its own two controls, with no Escape handler and no reachable close control.",
       "whyItMatters": "The worst failure mode there is: a keyboard user cannot leave, and the only way out is to reload the page and lose their place. It cannot be found by reading markup — it takes actually pressing Tab."
@@ -200,37 +323,55 @@
     {
       "id": "trap-decorative-alt",
       "selector": "[data-trap=\"trap-decorative-alt\"]",
-      "mustNotBeFlaggedFor": ["1.1.1"],
+      "mustNotBeFlaggedFor": [
+        "1.1.1"
+      ],
       "summary": "A genuinely decorative flourish, correctly hidden with alt=\"\".",
       "whyItMatters": "The commonest AI false positive in this space: an empty alt looks like a missing alt to a model that has not been told the difference."
     },
     {
       "id": "trap-contrast-ok",
       "selector": "[data-trap=\"trap-contrast-ok\"]",
-      "mustNotBeFlaggedFor": ["1.4.3"],
-      "measured": { "contrastRatio": 4.54, "threshold": 4.5 },
+      "mustNotBeFlaggedFor": [
+        "1.4.3"
+      ],
+      "measured": {
+        "contrastRatio": 4.54,
+        "threshold": 4.5
+      },
       "summary": "#767676 on white is 4.54:1 — grey, but passing.",
       "whyItMatters": "Sits just over the line. A check that eyeballs \"this looks light\" instead of computing the ratio fails here."
     },
     {
       "id": "trap-target-size-ok",
       "selector": "[data-trap=\"trap-target-size-ok\"]",
-      "mustNotBeFlaggedFor": ["2.5.8"],
-      "measured": { "widthPx": 24, "heightPx": 24, "threshold": 24 },
+      "mustNotBeFlaggedFor": [
+        "2.5.8"
+      ],
+      "measured": {
+        "widthPx": 24,
+        "heightPx": 24,
+        "threshold": 24
+      },
       "summary": "Exactly 24x24, which meets the minimum.",
       "whyItMatters": "Boundary case. Off-by-one in the comparator shows up here and nowhere else."
     },
     {
       "id": "trap-labelled-control",
       "selector": "[data-trap=\"trap-labelled-control\"]",
-      "mustNotBeFlaggedFor": ["3.3.2", "4.1.2"],
+      "mustNotBeFlaggedFor": [
+        "3.3.2",
+        "4.1.2"
+      ],
       "summary": "A select with a correctly associated label element.",
       "whyItMatters": "Proves the label check follows htmlFor/id rather than assuming any control near text is unlabelled."
     },
     {
       "id": "trap-focus-ring-ok",
       "selector": "[data-trap=\"trap-focus-ring-ok\"]",
-      "mustNotBeFlaggedFor": ["2.4.7"],
+      "mustNotBeFlaggedFor": [
+        "2.4.7"
+      ],
       "summary": "Keeps a strong focus ring via :focus-visible despite the global outline reset.",
       "whyItMatters": "The focus-visible check has to resolve the real cascade for this element, not just grep the stylesheet for `outline: none`."
     }

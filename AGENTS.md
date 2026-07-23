@@ -14,9 +14,13 @@ now capture a page; nothing detects or reports yet.
 
 Landed:
 
+- `@handrail/engine` axe detection layer (#5) — runs axe in-page after the capture,
+  maps results to Findings via `criteriaForAxeRule()`, keeps `incomplete`
+  (needs-review) and `passes` (carried as positive evidence, not findings), and
+  attaches deterministic pixel evidence for contrast. Catches gt-002/004/011 at
+  violation tier.
 - `@handrail/engine` capture core (#4) — StateCapture, the element index, screenshot
-  artifacts with lazy sharp crops, and the applicability-signal derivation. 15
-  browser tests against the real fixture, 22 unit tests.
+  artifacts with lazy sharp crops, and the applicability-signal derivation.
 
 - `@handrail/wcag` — all 55 WCAG 2.2 A/AA criteria as typed records, with
   `coverageMatrix()` / `coverageSummary()` and per-criterion applicability
@@ -39,25 +43,23 @@ Verified working: `pnpm install && pnpm test` green from a clean clone,
 
 ## Next up
 
-**Phase 1, issue #5: the axe detection layer.** Run axe-core against a captured
-state and turn its results into Findings via `criteriaForAxeRule()`. Three things
-the plan is specific about: keep `incomplete` results (they feed needs-review),
-keep `passes` (a criterion can only be reported `pass` on positive evidence, and
-this is the only source of it), and attach `ToolEvidence` so the findings reach
-`violation` tier under the schema's rules.
+**Phase 1: the first four heuristics** — `kbd.walk`, `kbd.focus-visible`,
+`ptr.target-size`, `resp.reflow-320`. The element index already carries
+`tabIndex`, `focusable`, `bbox` and the outline styles they need, and the fixture
+plants gt-005/007/008/009 for exactly these. This is where the project starts
+catching what axe cannot — kbd.walk drives real Tab presses (recall React's
+synthetic onBlur caveat), and reflow needs the 320px viewport.
 
-Note axe needs to run *in the page*, which the capture deliberately avoids — so it
-injects `axe.min.js` as a source string. That is a real page mutation, unlike the
-capture, so run it after the capture on the same load, never before.
-
-After that:
+Then:
 
 1. `@handrail/model` (#6) — the provider seam, with `local-deterministic` first so
    the eval backbone exists before anything depends on a network call. Read the
    API-shape constraints in ADR-0004 before writing it.
-2. First four heuristics (#5's sibling) — `kbd.walk`, `kbd.focus-visible`,
-   `ptr.target-size`, `resp.reflow-320`. The element index already carries
-   `tabIndex`, `focusable`, `bbox` and the outline styles they need.
+
+**Deferred (optional, from the plan's §Engine layer A):** IBM equal-access as a
+ceiling-limited `secondOpinion`. Not built — it is marked optional, adds the heavy
+`accessibility-checker` dep, and #5's acceptance did not need it. Pick it up if the
+comparison scorecard wants a second rule engine.
 
 ## Known gotchas
 
@@ -94,6 +96,23 @@ After that:
   first (`pnpm --filter @handrail/fixture-seeded-demo build`).
 - **`erasableSyntaxOnly` forbids TypeScript parameter properties.** Write
   `constructor(x: T) { this.x = x; }`, not `constructor(private readonly x: T)`.
+- **axe passes placeholder-only labels — the fixture's gt-003 blind spot.**
+  Chromium computes an input's accessible name *from* its placeholder, so axe's
+  `label` rule passes a placeholder-only field. It is still a real 3.3.2 failure
+  (the label vanishes on input), just not a rule-engine-catchable one. gt-003's
+  ground truth was corrected from `deterministic`/`axe.label`/`violation` to
+  `ai-text`/`ai.label-quality`/`likely` to match reality, and a browser test locks
+  in that axe does *not* report it. The axe-catchable seeded issues are gt-002,
+  gt-004, gt-011 — three, not the four the issue assumed.
+- **axe runs in the page; the capture must come first.** `runAxeDetection` injects
+  the axe bundle into the page's own realm (a real mutation), so it has to run
+  after `captureState` on the same load, or the element index would reflect a page
+  axe had already touched. axe target selectors are resolved to xpaths in an
+  isolated world and joined to the index there.
+- **`page.evaluate` cannot even declare a `const f = () =>`.** Not just named
+  functions — a const-arrow declaration inside an evaluate also hits `__name`. The
+  axe runner's in-page block is written as one inline anonymous arrow chain for
+  this reason; the group trimming happens in Node instead.
 - **axe reaches only 23 of the 55 criteria** — measured from its own metadata, not
   cited. 32 have no axe rule at all. Do not assume a criterion is uncovered without
   checking: axe 4.12 does ship `target-size` for 2.5.8, which is easy to get wrong.

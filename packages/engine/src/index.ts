@@ -10,3 +10,8 @@ export type {
   RawElementRecord,
   RawMediaInventory,
 } from './capture/element-index.browser.js';
+
+export * from './detect/types.js';
+export * from './detect/axe-detect.js';
+export * from './detect/axe-runner.js';
+export type { AxeResult, AxeResultGroup, AxeNode, AxeImpact } from './detect/axe-types.js';

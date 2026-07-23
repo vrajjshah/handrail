@@ -63,6 +63,9 @@ importers:
       '@handrail/wcag':
         specifier: workspace:*
         version: link:../wcag
+      axe-core:
+        specifier: ^4.12.1
+        version: 4.12.1
       playwright:
         specifier: ^1.61.1
         version: 1.61.1
