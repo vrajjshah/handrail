@@ -1,4 +1,4 @@
-import { type ModelProvider } from '@handrail/schemas';
+import { type ModelProvider, type ModelRole } from '@handrail/schemas';
 import {
   APIConnectionError,
   APIConnectionTimeoutError,
@@ -54,8 +54,24 @@ export interface AnthropicMessageResponse {
  * provider runs offline, which is also what lets CI stay network-free until the
  * cassette layer (#9) records real responses.
  */
+/**
+ * The provenance of a call, travelling alongside the wire params. The cassette
+ * layer keys on `(role, promptVersion, inputDigest)`, and none of those survive
+ * into `MessageCreateParamsNonStreaming` — so the transport carries them
+ * explicitly rather than trying to reconstruct them from the params.
+ */
+export interface TransportContext {
+  provider: ModelProvider;
+  role: ModelRole;
+  promptVersion: string;
+  /** The canonical (unprefixed) model id. */
+  model: string;
+  inputDigest: string;
+}
+
 export type MessagesTransport = (
   params: MessageCreateParamsNonStreaming,
+  context: TransportContext,
 ) => Promise<AnthropicMessageResponse>;
 
 export interface MessagesClientConfig {
@@ -225,7 +241,13 @@ export function createMessagesClient(config: MessagesClientConfig): ModelClient 
 
       let response: AnthropicMessageResponse;
       try {
-        response = await config.transport(params);
+        response = await config.transport(params, {
+          provider: config.provider,
+          role: request.role,
+          promptVersion: request.promptVersion,
+          model: request.model,
+          inputDigest: request.inputDigest,
+        });
       } catch (error) {
         throw mapProviderError(error, config.provider);
       }
