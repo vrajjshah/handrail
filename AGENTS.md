@@ -9,12 +9,16 @@ reality.
 
 ## Current state
 
-**Phase 0 (bootstrap) is complete.** Nothing scans yet — there is no engine, no
-CLI, no server. What exists is the contract layer, the toolchain, the CI gates,
-and the fixture that Phase 1 will be measured against.
+**Phase 0 complete. Phase 1 started** — freshness check done, `@handrail/wcag`
+landed. Nothing scans yet: there is no engine, no CLI, no server.
 
 Landed:
 
+- `@handrail/wcag` — all 55 WCAG 2.2 A/AA criteria as typed records, with
+  `coverageMatrix()` / `coverageSummary()` and per-criterion applicability
+  detectors. 31 more tests. Closes #2.
+- ADR-0004, the Phase 1 freshness check: no drift on models, prices or library
+  pins, but it found a real hole in the plan's cost model (see gotchas).
 - `@handrail/schemas` v1 — Finding, ScanTarget, ScanOptions, ScanRecord, ScanEvent,
   Report, ModelInvocation, in Zod 4. 63 unit tests.
 - Workspace scaffold: pnpm, strict TypeScript, vitest 4, eslint 10 flat config,
@@ -30,22 +34,47 @@ Verified working: `pnpm install && pnpm test` green from a clean clone,
 
 ## Next up
 
-**Phase 1 — engine + CLI.** Start with the freshness check (§0.1), then the
-milestone's issues in order. The first three, roughly in dependency order:
+**Phase 1, issue #3: the generated axe rule map.** Build it from `axe.getRules()`
+tags into a stamped file, and have CI assert the stamp matches the installed axe
+version with zero unmapped wcag-tagged rules — so an axe upgrade that adds a rule
+fails the build instead of silently going uncovered. `@handrail/wcag` already
+declares which check ids cover which criteria; the map is the other half.
 
-1. `@handrail/wcag` — all 55 WCAG 2.2 A/AA criteria as typed records, plus the
-   generated axe map with the CI stamp assertion.
-2. `@handrail/engine` capture core — StateCapture and the element index. Everything
-   downstream reads from these, so their shape matters more than their speed.
-3. `@handrail/model` — the provider seam, with `local-deterministic` first so the
-   eval backbone exists before anything depends on a network call.
+After that, roughly in dependency order:
 
-Do the phase-start freshness check before writing code: re-verify pinned versions,
-model ids, and prices, and record drift as an ADR plus a `docs/PLAN.md` amendment
-in the same commit.
+1. `@handrail/engine` capture core (#4) — StateCapture and the element index.
+   Everything downstream reads from these, so their shape matters more than their
+   speed. It also has to produce the `ApplicabilitySignals` that `@handrail/wcag`
+   consumes.
+2. `@handrail/model` (#6) — the provider seam, with `local-deterministic` first so
+   the eval backbone exists before anything depends on a network call. Read the
+   API-shape constraints in ADR-0004 before writing it.
 
 ## Known gotchas
 
+- **WCAG 2.2 is 31 Level A + 24 Level AA — not 30/25.** Carrying a WCAG 2.1
+  reference forward gives the wrong split because **4.1.1 Parsing (Level A) was
+  removed** and two of the six 2.2 additions (3.2.6, 3.3.7) are also Level A. The
+  total lands on 55 either way, which is exactly what makes it easy to miss. This
+  bit during authoring — the test caught it, not review.
+- **`@handrail/wcag` proves its own completeness at compile time.** The
+  `MustEqual<DefinedScId, KnownScId>` line in `packages/wcag/src/index.ts` fails to
+  typecheck if a criterion is missing *or* extra. Verified by drill in both
+  directions, so trust it — but if you add a criterion, add it to `KnownScId` too
+  or the build stops.
+- **Applicability detectors lean to `unknown`, not `not-applicable`.** "No video on
+  this site" is a claim about the whole site and is wrong the moment the crawler
+  missed a page. Only genuinely certain absences (site-level criteria on a
+  single-page scan) return `not-applicable`.
+- **The verifier's ≤2K prompt cannot be prompt-cached on Haiku 4.5.** Its minimum
+  cacheable prefix is 4096 tokens, so the cache silently never populates —
+  `cache_creation_input_tokens` is just 0. Options are in
+  [ADR-0004](docs/adr/0004-phase-1-freshness-check.md); decide it in the verifier
+  issue and build COST.md from measured `cache_read_input_tokens`.
+- **Sonnet 5 rejects `temperature`/`top_p`/`top_k` at non-default values**, has no
+  `budget_tokens`, and runs adaptive thinking when `thinking` is omitted. The
+  provider seam must set the thinking mode explicitly rather than relying on the
+  default, since `max_tokens` caps thinking and response together.
 - **Zod 4: `.default()` vs `.prefault()`.** `.default()` takes the schema's *output*
   type, so `.default({})` fails on any object whose fields have their own defaults.
   Use `.prefault({})` — it feeds the value through parsing so inner defaults apply.
