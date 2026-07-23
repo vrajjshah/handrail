@@ -79,6 +79,39 @@ jobs:
             exit 1
           fi
 
+  # Browser-driven capture. Ubuntu-only by design: it needs a real Chromium, and
+  # the point of the three-OS `unit` matrix is that it stays fast and dependency-free.
+  engine:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - run: corepack enable
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      - name: Resolve the pinned Playwright version
+        id: playwright
+        run: echo "version=$(pnpm --filter @handrail/engine exec playwright --version | awk '{print $2}')" >> "$GITHUB_OUTPUT"
+
+      - name: Cache the browser download
+        id: browser-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}
+
+      - name: Install Chromium
+        run: pnpm --filter @handrail/engine exec playwright install --with-deps chromium
+
+      # The capture suite runs against the real fixture app, not a synthetic
+      # document — document coordinates and the accessibility tree only behave
+      # correctly on a real origin.
+      - run: pnpm --filter @handrail/fixture-seeded-demo build
+      - run: pnpm test:browser
+
   audit:
     runs-on: ubuntu-latest
     steps:
