@@ -61,6 +61,12 @@ importers:
         specifier: ^4.4.3
         version: 4.4.3
 
+  packages/wcag:
+    dependencies:
+      '@handrail/schemas':
+        specifier: workspace:*
+        version: link:../schemas
+
 packages:
 
   '@babel/helper-string-parser@7.29.7':

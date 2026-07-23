@@ -19,6 +19,13 @@ points differ from the source document. Everything else is verbatim.
 - **Phase 0 environment note.** The MacBook had no Node toolchain at all. Installed during this session:
   `fnm` (Homebrew) → Node v22.23.1 → `corepack enable` → pnpm 11.16.0; `eval "$(fnm env --use-on-cd)"`
   added to `~/.zshrc`.
+- **[†4] Phase 1 freshness check (2026-07-23): no drift.** Model ids, prices, the Sonnet 5 intro
+  window, the 2576px vision ceiling, the ~30% tokenizer delta, and every Phase 1 library pin were
+  re-verified and are accurate as written. One **correction** came out of it: the verifier's ≤2K
+  input budget in §Cost engineering is *below Haiku 4.5's 4096-token minimum cacheable prefix*, so
+  that call cannot benefit from the prompt caching §Models assumes. See
+  [ADR-0004](adr/0004-phase-1-freshness-check.md) — decide in the Phase 1 verifier issue, and build
+  COST.md from measured `cache_read_input_tokens` rather than assumed hits.
 - **[†3] Toolchain pins drifted from the Locked-decisions table** (vitest ^3 → 4, "eslint 9" → 10,
   TypeScript held at 6.0.3 rather than 7 because `typescript-eslint` still caps its peer range at
   `<6.1.0`). Recorded per §0.1's freshness-check rule in
@@ -145,7 +152,7 @@ An a11y tool with an inaccessible UI is dead on arrival — reviewers will tab t
 
 ### Cost engineering (enforced)
 
-Screenshots normalized (≤1024w ≈2.7K tok; crops ≤300px ≈120 tok). Per-state budgets: text ≤8K/1.5K, vision ≤6K img+2K/1K, verifier ≤2K/300. **10-page scan: deterministic $0; hybrid ≈$0.25–0.80; hybrid-vision ≈$0.80, ceiling $1.50.** Degradation order: drop vision → drop text → deterministic. Judgment cache `sha256(model+promptVersion+checkId+inputDigest)` → >90% hits on templates/re-scans. Wall clock 10 pages: ≤5 min full, ≤2 min deterministic.
+Screenshots normalized (≤1024w ≈2.7K tok; crops ≤300px ≈120 tok). Per-state budgets: text ≤8K/1.5K, vision ≤6K img+2K/1K, verifier ≤2K/300. [†4] **10-page scan: deterministic $0; hybrid ≈$0.25–0.80; hybrid-vision ≈$0.80, ceiling $1.50.** Degradation order: drop vision → drop text → deterministic. Judgment cache `sha256(model+promptVersion+checkId+inputDigest)` → >90% hits on templates/re-scans. Wall clock 10 pages: ≤5 min full, ≤2 min deterministic.
 
 ## Phased roadmap (solo, ~8–10 h/wk; every phase demoable)
 
