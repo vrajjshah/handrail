@@ -9,6 +9,9 @@
       "path": "./packages/wcag/tsconfig.build.json"
     },
     {
+      "path": "./packages/model/tsconfig.build.json"
+    },
+    {
       "path": "./packages/engine/tsconfig.build.json"
     }
   ]

@@ -76,6 +76,15 @@ importers:
         specifier: ^4.4.3
         version: 4.4.3
 
+  packages/model:
+    dependencies:
+      '@handrail/schemas':
+        specifier: workspace:*
+        version: link:../schemas
+      zod:
+        specifier: ^4.4.3
+        version: 4.4.3
+
   packages/schemas:
     dependencies:
       zod:
