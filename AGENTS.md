@@ -9,12 +9,20 @@ reality.
 
 ## Current state
 
-**Phase 0 complete. Phase 1 in progress** — 7 of 12 issues done. The engine can
+**Phase 0 complete. Phase 1 in progress** — 8 of 12 issues done. The engine can
 capture and detect; the model seam has real providers, but nothing in the tests
 or CI reaches a network — every call goes through an injectable transport.
 
 Landed:
 
+- `@handrail/model` record/replay cassettes (#9) — `MODEL_MODE=live|record|replay`
+  wrapping the provider transport. Cassettes are keyed by
+  `(role, promptVersion, inputDigest)` and store the **request as well as the
+  response**, so `cassettes:refresh` re-issues exactly what was sent rather than
+  approximating it, under a budget cap checked *before* each call. A replay miss is
+  a loud `CassetteMissError`, never a fall-through to the network.
+  `findStaleCassettes` / `findUncoveredRoles` surface prompt-version drift. The
+  corpus itself is empty until #10 gives it a real prompt to record.
 - `@handrail/model` Anthropic + Bedrock providers (#8) — one shared Messages-API
   implementation (`createMessagesClient`) that both `createAnthropicClient` and
   `createBedrockClient` wrap; the only differences are the transport and the
@@ -69,17 +77,16 @@ Verified working: `pnpm install && pnpm test` green from a clean clone,
 
 ## Next up
 
-**Record/replay cassettes (#9).** Wrap the provider transport seam with
-`MODEL_MODE=record|replay`: record captures REAL provider responses keyed by
-`(role, promptVersion, inputDigest)` into committed JSON cassettes; replay serves
-them in CI with zero API keys (CI already sets `MODEL_MODE=replay`). This plugs in
-at the `MessagesTransport` boundary — the whole point of that seam. `inputDigest`
-is already computed by the ledger; a stale-cassette check warns when
-`promptVersion` ≠ cassette version.
+**The text judge + verdict pipeline (#10)** — the big one, and the trust core. One
+batched call per state over a compact element-index extract, then grounding →
+dedupe → verification → the hard tier matrix (`tierCeilingFor()` already encodes
+it). Rejected candidates go to `hallucination-ledger.json` as telemetry, never to
+the report. It's also where the verifier's ≤2K-prompt caching hole (ADR-0004) gets
+decided, and where #9's cassette corpus gets its first real recording — **#9's
+"full hybrid path green in CI" acceptance completes here.**
 
-The text judge + verdict pipeline (#10) is the big one — it grounds AI candidates
-against the element index the capture already produces, and it's where the
-verifier's ≤2K-prompt caching hole (ADR-0004) gets decided.
+Then the orchestrator (#11): LangGraph 1.x, 8 nodes, `streamMode: "custom"`
+emitting `ScanEvent`s, with `@langchain/*` confined to that package.
 
 **Deferred (optional, from the plan's §Engine layer A):** IBM equal-access as a
 ceiling-limited `secondOpinion`. Not built — it is marked optional, adds the heavy
@@ -197,6 +204,17 @@ comparison scorecard wants a second rule engine.
   way *out* but the ledger records the **canonical** id (`claude-sonnet-5`, not
   `anthropic.claude-sonnet-5`), so pricing and `capabilityFor` stay provider-agnostic
   and a new model only needs registering under its canonical id. Don't fork the impl.
+- **`promptVersion` is part of the cassette key, so bumping a prompt does not
+  replay a stale answer — it misses.** That is the safe failure, but it means a
+  revised prompt silently has *zero* replay coverage until it is re-recorded, and a
+  suite that covers nothing still passes. `findStaleCassettes` and
+  `findUncoveredRoles` exist to make that visible; wire them into a check rather
+  than trusting a green replay run.
+- **The transport carries a `TransportContext`, not just wire params.** The cassette
+  key needs `(role, promptVersion, inputDigest)` and none of those survive into
+  `MessageCreateParamsNonStreaming`, so `MessagesTransport` takes a second argument.
+  Cassettes also store the **request**, which is what makes `cassettes:refresh` a
+  true re-record instead of a guess.
 - **The provider transport is the only network boundary — keep it injectable.**
   Every provider takes a `transport?: MessagesTransport`; the real SDK client
   (`new Anthropic()` / `new AnthropicBedrockMantle()`) is constructed *only* inside
