@@ -126,6 +126,15 @@ comparison scorecard wants a second rule engine.
 
 ## Known gotchas
 
+- **`/\s*(x)\s*/g` over page content is a denial of service, not a slow regex.**
+  The pattern is ambiguous on a whitespace run — the engine retries `\s*` from
+  every position inside it — so it is quadratic: 1.6s for 60,000 spaces, and the
+  DOM snapshot it runs over is attacker-controlled. CodeQL's `js/polynomial-redos`
+  caught it in `normalizeMarkup`. The chain was *accidentally* safe because
+  `\s+` collapsed runs first, which is worse than being unsafe: the guarantee
+  lived in the ordering of two `.replace()` calls and nothing at the call site
+  could see it. Use ` ?(x) ?` and keep every step linear on its own. Assume any
+  new regex that touches captured HTML gets this scrutiny.
 - **A test that imports a generator runs the generator.** The seeded-demo capture
   is committed so the acceptance suite can run browser-free on three OSes, and a
   `*.browser.test.ts` re-captures the live fixture to prove the frozen copy has
