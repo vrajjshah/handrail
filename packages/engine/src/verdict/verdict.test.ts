@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 
 import { always, capture, element, scriptedClient, testLedger } from '../__test__/factories.js';
 import type { TextJudgeCandidate } from '../judge/text-judge-schema.js';
-import { bestMatchRatio, boundedLevenshtein, similarity } from './fuzzy.js';
+import { bestMatchRatio, boundedLevenshtein, normalizeMarkup, similarity } from './fuzzy.js';
 import { DOM_QUOTE_THRESHOLD, canonicalMarkup, groundCandidate } from './grounding.js';
 import { buildHallucinationLedger } from './hallucination-ledger.js';
 import { dedupeGrounded, runVerdictPipeline, verificationFor } from './pipeline.js';
@@ -51,6 +51,16 @@ describe('fuzzy matching', () => {
   it('treats a verbatim quote of the snapshot as a perfect match', () => {
     const html = '<html><body><a href="/menu">\n  Click here\n</a></body></html>';
     expect(bestMatchRatio('<a href="/menu">Click here</a>', html)).toBe(1);
+  });
+
+  it('normalises adversarial whitespace in linear time', () => {
+    // The DOM snapshot this runs over is attacker-controlled, so a polynomial
+    // pattern here is a denial of service, not a slow test. The naive
+    // `/\s*([<>])\s*/g` takes ~1.6s on 60k spaces; this input is longer.
+    const hostile = `<${' '.repeat(100_000)}>${' '.repeat(100_000)}x`;
+    const started = Date.now();
+    expect(normalizeMarkup(hostile)).toBe('<>x');
+    expect(Date.now() - started).toBeLessThan(1000);
   });
 
   it('scores a paraphrase below the grounding threshold', () => {

@@ -14,7 +14,15 @@ export function normalizeMarkup(value: string): string {
       // Whitespace hugging a tag delimiter is pretty-printing, and a model that
       // quotes `<a href="/menu">Click here</a>` from a page whose serialiser
       // wrote `<a href="/menu">\n  Click here\n</a>` has quoted it correctly.
-      .replace(/\s*([<>])\s*/g, '$1')
+      //
+      // ` ?` and not `\s*`: the obvious `/\s*([<>])\s*/g` is *polynomial* on a
+      // long whitespace run, because the engine retries `\s*` from every
+      // position inside it — 1.6s for 60k spaces, and this runs over a whole
+      // captured DOM snapshot, which is attacker-controlled. Collapsing first
+      // happens to defuse it, but that would make the safety an accident of
+      // ordering that nothing at the call site can see. Each step is linear on
+      // its own instead. CodeQL caught this one.
+      .replace(/ ?([<>]) ?/g, '$1')
       .trim()
       .toLowerCase()
   );
