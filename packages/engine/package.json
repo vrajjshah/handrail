@@ -1,0 +1,32 @@
+{
+  "name": "@handrail/engine",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Capture, detection, verdict pipeline. Plain TypeScript — no orchestration dependency.",
+  "license": "MIT",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "publishConfig": {
+    "access": "public",
+    "main": "./dist/index.js",
+    "types": "./dist/index.d.ts",
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      }
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "dependencies": {
+    "@handrail/schemas": "workspace:*",
+    "@handrail/wcag": "workspace:*",
+    "playwright": "^1.61.1",
+    "sharp": "^0.35.3",
+    "zod": "^4.4.3"
+  }
+}

@@ -9,10 +9,14 @@ reality.
 
 ## Current state
 
-**Phase 0 complete. Phase 1 started** — freshness check done, `@handrail/wcag`
-landed. Nothing scans yet: there is no engine, no CLI, no server.
+**Phase 0 complete. Phase 1 in progress** — 3 of 12 issues done. The engine can
+now capture a page; nothing detects or reports yet.
 
 Landed:
+
+- `@handrail/engine` capture core (#4) — StateCapture, the element index, screenshot
+  artifacts with lazy sharp crops, and the applicability-signal derivation. 15
+  browser tests against the real fixture, 22 unit tests.
 
 - `@handrail/wcag` — all 55 WCAG 2.2 A/AA criteria as typed records, with
   `coverageMatrix()` / `coverageSummary()` and per-criterion applicability
@@ -35,21 +39,25 @@ Verified working: `pnpm install && pnpm test` green from a clean clone,
 
 ## Next up
 
-**Phase 1, issue #4: `@handrail/engine` capture core.** StateCapture and the
-element index. Everything downstream reads from these, so their shape matters more
-than their speed. It also has to produce the `ApplicabilitySignals` that
-`@handrail/wcag` consumes, and the element index is what the verdict pipeline
-grounds AI claims against — an elemId that does not resolve is how a hallucinated
-finding gets rejected.
+**Phase 1, issue #5: the axe detection layer.** Run axe-core against a captured
+state and turn its results into Findings via `criteriaForAxeRule()`. Three things
+the plan is specific about: keep `incomplete` results (they feed needs-review),
+keep `passes` (a criterion can only be reported `pass` on positive evidence, and
+this is the only source of it), and attach `ToolEvidence` so the findings reach
+`violation` tier under the schema's rules.
+
+Note axe needs to run *in the page*, which the capture deliberately avoids — so it
+injects `axe.min.js` as a source string. That is a real page mutation, unlike the
+capture, so run it after the capture on the same load, never before.
 
 After that:
 
-1. `@handrail/engine` axe detection layer (#5) — wire axe-core through
-   `criteriaForAxeRule()`; keep `incomplete` (feeds needs-review) and `passes`
-   (a criterion can only be reported `pass` on positive evidence).
-2. `@handrail/model` (#6) — the provider seam, with `local-deterministic` first so
+1. `@handrail/model` (#6) — the provider seam, with `local-deterministic` first so
    the eval backbone exists before anything depends on a network call. Read the
    API-shape constraints in ADR-0004 before writing it.
+2. First four heuristics (#5's sibling) — `kbd.walk`, `kbd.focus-visible`,
+   `ptr.target-size`, `resp.reflow-320`. The element index already carries
+   `tabIndex`, `focusable`, `bbox` and the outline styles they need.
 
 ## Known gotchas
 
@@ -58,6 +66,25 @@ After that:
   removed** and two of the six 2.2 additions (3.2.6, 3.3.7) are also Level A. The
   total lands on 55 either way, which is exactly what makes it easy to miss. This
   bit during authoring — the test caught it, not review.
+- **Browser-side code must be fully self-contained.** `fn.toString()` serialises
+  only the function body, so a module-level constant referenced from inside it
+  becomes a `ReferenceError` in the page. This bit once already — every lookup
+  table in `element-index.browser.ts` lives *inside* the function for that reason.
+- **The capture never touches the target page**, and there is a test asserting the
+  serialised DOM is byte-identical before and after. The element index is collected
+  from a CDP **isolated world**, which also solves the esbuild `__name` problem:
+  the shim is defined in that world and never reaches the page. Do not "simplify"
+  this to `page.evaluate` — that runs in the page's own realm.
+- **Roles and accessible names come from Chromium's AX tree, not our code.** Two
+  CDP calls (`DOM.getDocument` + `Accessibility.getFullAXTree`) joined by
+  `backendNodeId` → xpath. Reimplementing accname would put us at odds with what a
+  screen reader actually announces, which is the one thing this tool cannot afford.
+- **Browser tests are a separate vitest config and an ubuntu-only CI job.**
+  `pnpm test:browser`; files are `*.browser.test.ts` and excluded from the default
+  `unit` run so it stays green on macOS and Windows. They need the fixture built
+  first (`pnpm --filter @handrail/fixture-seeded-demo build`).
+- **`erasableSyntaxOnly` forbids TypeScript parameter properties.** Write
+  `constructor(x: T) { this.x = x; }`, not `constructor(private readonly x: T)`.
 - **axe reaches only 23 of the 55 criteria** — measured from its own metadata, not
   cited. 32 have no axe rule at all. Do not assume a criterion is uncovered without
   checking: axe 4.12 does ship `target-size` for 2.5.8, which is easy to get wrong.
