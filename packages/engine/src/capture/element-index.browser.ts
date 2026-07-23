@@ -165,6 +165,21 @@ export function collectElementIndex(options: BrowserCollectorOptions): RawCollec
       ? CSS.escape(value)
       : value.replace(/[^\w-]/g, (c) => `\\${c}`);
 
+  /**
+   * Escapes a value for use inside a double-quoted CSS string.
+   *
+   * **Backslash first, then quote** — reversing the order double-escapes the
+   * backslashes just added and corrupts the selector.
+   *
+   * This matters more here than it looks. Attribute values come from the page
+   * being scanned, which for this tool is untrusted input by definition: we point
+   * it at arbitrary URLs. Escaping only the quote leaves a value ending in a
+   * backslash able to escape the closing quote and change what the selector
+   * matches.
+   */
+  const cssStringEscape = (value: string): string =>
+    value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+
   const resolvesUniquely = (selector: string, el: Element): boolean => {
     try {
       const found = document.querySelectorAll(selector);
@@ -183,7 +198,7 @@ export function collectElementIndex(options: BrowserCollectorOptions): RawCollec
 
     const testId = el.getAttribute('data-testid');
     if (testId !== null && testId.length > 0) {
-      const candidate = `[data-testid="${testId.replace(/"/g, '\\"')}"]`;
+      const candidate = `[data-testid="${cssStringEscape(testId)}"]`;
       if (resolvesUniquely(candidate, el)) return candidate;
     }
 

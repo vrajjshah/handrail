@@ -66,6 +66,15 @@ After that:
   removed** and two of the six 2.2 additions (3.2.6, 3.3.7) are also Level A. The
   total lands on 55 either way, which is exactly what makes it easy to miss. This
   bit during authoring — the test caught it, not review.
+- **Page content is untrusted input.** We point this tool at arbitrary URLs, so
+  any string taken from the DOM — attribute values especially — must be escaped
+  before it goes into a selector, a query, a prompt or a report. CodeQL caught
+  incomplete escaping here once already (backslash-then-quote, in that order).
+- **Beware tests that pass for the wrong reason.** `selectorOf` verifies every
+  candidate with `resolvesUniquely` and falls back when it fails, so a *correct
+  selector* is not evidence of *correct escaping* — the guard masks the bug. When
+  a defensive layer sits downstream of the thing under test, assert the property
+  that actually differs, then drill it by reverting the fix.
 - **Browser-side code must be fully self-contained.** `fn.toString()` serialises
   only the function body, so a module-level constant referenced from inside it
   becomes a `ReferenceError` in the page. This bit once already — every lookup

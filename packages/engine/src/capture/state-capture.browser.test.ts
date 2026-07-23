@@ -214,6 +214,81 @@ describe('capturing the seeded demo', () => {
   });
 });
 
+describe('hostile page content', () => {
+  it('escapes attribute values that would otherwise break out of the selector', async () => {
+    const context = await browser.newContext({
+      viewport: { width: DESKTOP.width, height: DESKTOP.height },
+    });
+    const page = await context.newPage();
+    try {
+      // A scanner points at arbitrary URLs, so page content is untrusted input.
+      // Each of these ends in or contains characters that break naive escaping;
+      // a trailing backslash escapes the closing quote and changes what the
+      // generated selector matches.
+      await page.goto(server.origin, { waitUntil: 'networkidle' });
+      await page.evaluate(() => {
+        const hostile = [
+          String.raw`trailing-backslash\\`,
+          'has"quote',
+          String.raw`both\\"mixed`,
+          'x" i], [data-testid="injected',
+        ];
+        for (const value of hostile) {
+          const el = document.createElement('div');
+          el.setAttribute('data-testid', value);
+          el.textContent = 'hostile';
+          document.body.append(el);
+        }
+      });
+
+      const state = await captureState(page, { viewport: DESKTOP });
+      const hostileElements = state.elements.filter((el) => el.text === 'hostile');
+      expect(hostileElements).toHaveLength(4);
+
+      // The escaping has to actually work, not merely be survivable.
+      // `selectorOf` verifies every candidate with `resolvesUniquely` and falls
+      // back to a structural path when it fails — which means a *correct*
+      // selector is not evidence of correct escaping. What distinguishes them is
+      // whether the data-testid form was usable at all: with incomplete
+      // escaping these values produce an invalid selector, it is rejected, and
+      // the element silently drops to nth-of-type.
+      for (const el of hostileElements) {
+        expect(el.selector.startsWith('[data-testid='), el.selector).toBe(true);
+      }
+
+      // And it must still resolve to exactly its own element.
+      const results = await page.evaluate(
+        (pairs) =>
+          pairs.map(({ selector, xpath }) => {
+            let found: NodeListOf<Element>;
+            try {
+              found = document.querySelectorAll(selector);
+            } catch {
+              return { selector, ok: false, reason: 'threw' };
+            }
+            if (found.length !== 1) return { selector, ok: false, reason: `matched ${String(found.length)}` };
+            const parts: string[] = [];
+            for (let n: Element | null = found[0] ?? null; n !== null; n = n.parentElement) {
+              let i = 1;
+              for (let s = n.previousElementSibling; s; s = s.previousElementSibling) {
+                if (s.tagName === n.tagName) i += 1;
+              }
+              parts.unshift(`${n.tagName.toLowerCase()}[${String(i)}]`);
+            }
+            return { selector, ok: `/${parts.join('/')}` === xpath, reason: 'wrong element' };
+          }),
+        hostileElements.map((el) => ({ selector: el.selector, xpath: el.xpath })),
+      );
+
+      for (const result of results) {
+        expect(result.ok, `${result.selector} — ${result.reason}`).toBe(true);
+      }
+    } finally {
+      await context.close();
+    }
+  });
+});
+
 describe('interaction-dependent states', () => {
   it('captures the keyboard trap that only exists once the dialog is open', async () => {
     const context = await browser.newContext({
