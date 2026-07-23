@@ -1,0 +1,30 @@
+node_modules/
+dist/
+build/
+coverage/
+*.tsbuildinfo
+
+.env
+.env.*
+!.env.example
+
+.DS_Store
+Thumbs.db
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+.vscode/*
+!.vscode/extensions.json
+.idea/
+
+# Playwright / engine scratch output
+test-results/
+playwright-report/
+.playwright/
+.handrail/
+scan-output/
+
+# Local-only model cassette recordings live under packages/model/cassettes and ARE committed;
+# raw provider dumps used while recording are not.
+*.cassette.raw.json
