@@ -1,0 +1,32 @@
+{
+  "name": "@handrail/orchestrator",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "The LangGraph scan graph. The only package that depends on @langchain/* — surfaces never do.",
+  "license": "MIT",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "publishConfig": {
+    "access": "public",
+    "main": "./dist/index.js",
+    "types": "./dist/index.d.ts",
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      }
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "dependencies": {
+    "@handrail/engine": "workspace:*",
+    "@handrail/model": "workspace:*",
+    "@handrail/schemas": "workspace:*",
+    "@langchain/langgraph": "^1.4.8",
+    "zod": "^4.4.3"
+  }
+}

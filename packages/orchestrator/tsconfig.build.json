@@ -1,0 +1,17 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "./src",
+    "outDir": "./dist",
+    "tsBuildInfoFile": "./dist/.tsbuildinfo",
+    "lib": ["ES2023"],
+    "types": ["node"]
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": ["src/**/*.test.ts", "src/**/*.browser.test.ts", "src/**/__test__/**"],
+  "references": [
+    { "path": "../schemas/tsconfig.build.json" },
+    { "path": "../model/tsconfig.build.json" },
+    { "path": "../engine/tsconfig.build.json" }
+  ]
+}
