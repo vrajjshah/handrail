@@ -9,11 +9,22 @@ reality.
 
 ## Current state
 
-**Phase 0 complete. Phase 1 in progress** — 6 of 12 issues done. The engine can
-capture and detect; the model seam exists but no provider reaches a network yet.
+**Phase 0 complete. Phase 1 in progress** — 7 of 12 issues done. The engine can
+capture and detect; the model seam has real providers, but nothing in the tests
+or CI reaches a network — every call goes through an injectable transport.
 
 Landed:
 
+- `@handrail/model` Anthropic + Bedrock providers (#8) — one shared Messages-API
+  implementation (`createMessagesClient`) that both `createAnthropicClient` and
+  `createBedrockClient` wrap; the only differences are the transport and the
+  `anthropic.` model-id prefix. Native structured outputs via `output_config.format`
+  + `zodOutputFormat`, the `system` prefix carrying a cache breakpoint, thinking set
+  from the capability map (explicit adaptive on Sonnet 5, omitted on Haiku 4.5), and
+  SDK errors mapped to typed `ModelError`s by HTTP status. Same prompt runs against
+  both providers → schema-valid output; cached-prefix reuse shows up as `cacheRead`
+  in the ledger. `@anthropic-ai/sdk` 0.113.0, `@anthropic-ai/bedrock-sdk` 0.32.0
+  (ADR-0004 pins; model ids/prices re-verified — no drift). 20 new tests.
 - `@handrail/model` provider seam (#7) — the `CostLedger` *is* the seam every
   model call goes through: it times, prices and records a schema-valid
   `ModelInvocation` on success *and* failure, then re-throws a typed `ModelError`
@@ -58,15 +69,13 @@ Verified working: `pnpm install && pnpm test` green from a clean clone,
 
 ## Next up
 
-**Anthropic + Bedrock providers (#8) and record/replay cassettes (#9).** The seam
-is built, so these plug into it: #8 implements `ModelClient` for `anthropic`
-(`@anthropic-ai/sdk`, native structured outputs) and `bedrock`, reading the
-capability map already in `@handrail/model` — honour every ADR-0004 constraint
-(Sonnet 5 rejects sampling params, no `budget_tokens`, adaptive thinking default,
-Bedrock forced-`tool_choice` needs thinking disabled). **Both must register their
-models in `pricing.ts` and `capability.ts` or a successful call throws** (see
-gotchas). #9 wraps the seam with `MODEL_MODE=record|replay` — CI already sets
-`replay`.
+**Record/replay cassettes (#9).** Wrap the provider transport seam with
+`MODEL_MODE=record|replay`: record captures REAL provider responses keyed by
+`(role, promptVersion, inputDigest)` into committed JSON cassettes; replay serves
+them in CI with zero API keys (CI already sets `MODEL_MODE=replay`). This plugs in
+at the `MessagesTransport` boundary — the whole point of that seam. `inputDigest`
+is already computed by the ledger; a stale-cassette check warns when
+`promptVersion` ≠ cassette version.
 
 The text judge + verdict pipeline (#10) is the big one — it grounds AI candidates
 against the element index the capture already produces, and it's where the
@@ -181,6 +190,30 @@ comparison scorecard wants a second rule engine.
   default, since `max_tokens` caps thinking and response together. Consequently
   **`ModelRequest` has no temperature knob at all** — steering is prompt-only
   across every provider. Don't add one "just for Anthropic"; it will 400 on Sonnet.
+- **Anthropic and Bedrock share one Messages implementation.** `anthropic` and
+  `bedrock` differ only in the transport and the `anthropic.` model-id prefix;
+  everything else (request building, response/error mapping, structured output) is
+  `createMessagesClient` in `anthropic-messages.ts`. Bedrock prefixes the id on the
+  way *out* but the ledger records the **canonical** id (`claude-sonnet-5`, not
+  `anthropic.claude-sonnet-5`), so pricing and `capabilityFor` stay provider-agnostic
+  and a new model only needs registering under its canonical id. Don't fork the impl.
+- **The provider transport is the only network boundary — keep it injectable.**
+  Every provider takes a `transport?: MessagesTransport`; the real SDK client
+  (`new Anthropic()` / `new AnthropicBedrockMantle()`) is constructed *only* inside
+  the default transport, never in tests. This is what lets the whole provider run
+  offline and is exactly where #9's cassettes plug in. Never call a provider in a
+  test without injecting a transport.
+- **`APIError.generate(status, body, msg, headers)` returns an `APIConnectionError`
+  when `headers` is falsy** — it short-circuits on `if (!status || !headers)` before
+  looking at the status. So a test that builds a fake 401/429 with `undefined`
+  headers silently gets a *connection* error and your status→code mapping never runs.
+  Pass `new Headers()`. Cost me one red test.
+- **Thinking is capability-driven, and Haiku 4.5 must not get `{type:'disabled'}`.**
+  Sonnet 5 gets an explicit `{type:'adaptive', display:'omitted'}` (never rely on the
+  silent adaptive default); Haiku 4.5 has no adaptive mode, so the seam simply omits
+  the `thinking` field. The `system` prefix always carries a cache breakpoint, but it
+  only caches above the model's floor (Haiku 4096 / Sonnet 2048, in the capability
+  map) — below it, `cacheRead` stays 0 and COST.md must reflect that measured reality.
 - **The price and capability tables fail loud, on purpose.** `computeCostUsd`
   throws `UnknownModelPriceError` and `capabilityFor` throws
   `UnknownModelCapabilityError` for any non-deterministic model they don't know.

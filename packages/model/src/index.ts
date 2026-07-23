@@ -7,3 +7,6 @@ export * from './capability.js';
 export * from './ledger.js';
 export * from './degradation.js';
 export * from './providers/deterministic.js';
+export * from './providers/anthropic-messages.js';
+export * from './providers/anthropic.js';
+export * from './providers/bedrock.js';
