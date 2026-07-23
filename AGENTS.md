@@ -70,6 +70,12 @@ in the same commit.
 - **Node is managed by fnm on the build machine.** `.node-version` pins 22.23.1 and
   `~/.zshrc` has `fnm env --use-on-cd`, so a new shell in this directory gets the
   right Node automatically. A shell that does not source the profile will not.
+- **The unscoped npm name `handrail` is already taken** — it is an unrelated
+  functional-programming utility at `handrail@2.0.0` (github.com/brekk/handrail).
+  The `@handrail` *scope* appears free. So `npx handrail scan <url>` as written in
+  the plan will not work as-is, and the CLI needs either a scoped package with a
+  `handrail` bin, or a different published name. Decided in Phase 5, not before;
+  tracked as an issue on that milestone.
 - **Branch protection does not yet require `eval-deterministic` and `golden-scan`.**
   Plan step 10 lists them, but neither check exists before Phase 1/3, and requiring
   a check that never reports blocks every PR forever. Add each to the required set
