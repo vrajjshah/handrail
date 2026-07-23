@@ -9,12 +9,29 @@ reality.
 
 ## Current state
 
-**Phase 0 complete. Phase 1 in progress** — 8 of 12 issues done. The engine can
-capture and detect; the model seam has real providers, but nothing in the tests
-or CI reaches a network — every call goes through an injectable transport.
+**Phase 0 complete. Phase 1 in progress** — 9 of 12 issues done. The engine can
+capture, detect **and judge**; the model seam has real providers, but nothing in
+the tests or CI reaches a network — every call goes through an injectable
+transport.
 
 Landed:
 
+- `@handrail/engine` text judge + verdict pipeline (#10) — **the trust core.**
+  One batched `text-judge` call per state over a compact, sanitised
+  element-index extract (23 elements / ~860 tokens on the seeded demo, against a
+  6K budget), covering nine closed claim families: link purpose, label quality,
+  heading quality, heading outline, page title, error messages, error
+  suggestions, lang of parts, alt-text triage. Then the four stages every
+  candidate must survive: **grounding** (elemId must be in the index; quoted DOM
+  fuzzy-matches the snapshot at ≥90% via bounded, anchor-seeded Levenshtein;
+  cited attributes are re-read from the snapshot, and a claim resting on one the
+  page does not carry is rejected) → **dedupe** on `(family, elemId)` →
+  **verification** (a deterministic re-check per family, plus a separate
+  fresh-context Haiku verifier answering a four-boolean rubric) → **the hard tier
+  matrix**, via `tierCeilingFor()`. Rejections become
+  `hallucination-ledger.json` rows and can never come back. gt-006, gt-013 *and*
+  gt-003 land at `likely`; every fixture trap is refuted deterministically before
+  a verifier is asked. ADR-0005 decides the ADR-0004 caching hole.
 - `@handrail/model` record/replay cassettes (#9) — `MODEL_MODE=live|record|replay`
   wrapping the provider transport. Cassettes are keyed by
   `(role, promptVersion, inputDigest)` and store the **request as well as the
@@ -77,16 +94,30 @@ Verified working: `pnpm install && pnpm test` green from a clean clone,
 
 ## Next up
 
-**The text judge + verdict pipeline (#10)** — the big one, and the trust core. One
-batched call per state over a compact element-index extract, then grounding →
-dedupe → verification → the hard tier matrix (`tierCeilingFor()` already encodes
-it). Rejected candidates go to `hallucination-ledger.json` as telemetry, never to
-the report. It's also where the verifier's ≤2K-prompt caching hole (ADR-0004) gets
-decided, and where #9's cassette corpus gets its first real recording — **#9's
-"full hybrid path green in CI" acceptance completes here.**
+**The orchestrator (#11)**: LangGraph 1.x, 8 nodes, `streamMode: "custom"`
+emitting `ScanEvent`s, with `@langchain/*` confined to that package. It wires
+`runTextJudgment` into the `judge-text` phase, turns `VerdictDegradation`s into
+scan-level `Degradation`s (`degradationForModelError` is already there for the
+model ones), and owns writing `hallucination-ledger.json` next to the report —
+the engine builds the ledger, it does not choose where a scan's artifacts live.
 
-Then the orchestrator (#11): LangGraph 1.x, 8 nodes, `streamMode: "custom"`
-emitting `ScanEvent`s, with `@langchain/*` confined to that package.
+**Still open from #10, deliberately:**
+
+- **The cassette corpus is still empty.** #10 built the prompts and wired
+  `CURRENT_PROMPT_VERSIONS` into `findStaleCassettes` / `findUncoveredRoles`
+  (there is a test asserting both roles currently read as *uncovered*), but
+  recording needs a real API key and a real target page, which belongs with the
+  CLI (#12) rather than a unit-test slice. **#9's "full hybrid path green in CI"
+  acceptance is therefore still outstanding** — the replay path is exercised, the
+  corpus is not.
+- **The text judge runs per page *state*, not per page.** Text content does not
+  change with viewport, so judging `desktop`, `mobile` and `reflow-320`
+  separately would triple the cost for identical answers. The orchestrator should
+  judge one state per URL and reuse the verdict; the engine deliberately does not
+  decide this.
+- **`ai.lang-of-parts` and the two error families have no fixture.** They are
+  implemented and re-checked but the seeded demo has no foreign-language passage
+  and no error state, so their recall is untested. Phase 3's fixture corpus.
 
 **Deferred (optional, from the plan's §Engine layer A):** IBM equal-access as a
 ceiling-limited `secondOpinion`. Not built — it is marked optional, adds the heavy
@@ -95,6 +126,57 @@ comparison scorecard wants a second rule engine.
 
 ## Known gotchas
 
+- **`/\s*(x)\s*/g` over page content is a denial of service, not a slow regex.**
+  The pattern is ambiguous on a whitespace run — the engine retries `\s*` from
+  every position inside it — so it is quadratic: 1.6s for 60,000 spaces, and the
+  DOM snapshot it runs over is attacker-controlled. CodeQL's `js/polynomial-redos`
+  caught it in `normalizeMarkup`. The chain was *accidentally* safe because
+  `\s+` collapsed runs first, which is worse than being unsafe: the guarantee
+  lived in the ordering of two `.replace()` calls and nothing at the call site
+  could see it. Use ` ?(x) ?` and keep every step linear on its own. Assume any
+  new regex that touches captured HTML gets this scrutiny.
+- **A test that imports a generator runs the generator.** The seeded-demo capture
+  is committed so the acceptance suite can run browser-free on three OSes, and a
+  `*.browser.test.ts` re-captures the live fixture to prove the frozen copy has
+  not rotted. The guard imported the generator module for its helpers — and that
+  module ends in `await main()`, so importing it **regenerated the file the guard
+  was about to check**, and the guard passed unconditionally. The reusable
+  helpers now live in `scripts/seeded-demo-fixture.ts`, which has no side
+  effects. Verified by drill: corrupt the committed capture, watch the guard go
+  red. Any "check the committed artifact" test needs that drill.
+- **Neither Phase 1 Haiku prompt prompt-caches, and padding them to fix that is
+  the wrong move.** Haiku 4.5's minimum cacheable prefix is 4096 tokens; the
+  verifier's prefix is ~400 and the text judge's is ~2,750 even after the WCAG
+  reference block. ADR-0004 flagged this for the verifier only — it is wider than
+  that. [ADR-0005](docs/adr/0005-verifier-prompt-caching.md) has the arithmetic:
+  padding the verifier is *strictly more expensive forever*, and padding the
+  judge saves ~$0.02 per 10-page scan in exchange for 1,300 tokens of filler in a
+  prompt whose precision is the product. `COST.md` will show 0 cache reads for
+  both roles; that is correct, not a bug to fix in the report.
+- **`data-gt` is not in the element index, on purpose.** It is a fixture
+  convention and a scanner has no business knowing about it, so ground-truth ids
+  are joined to captured elements **by xpath** through the committed
+  `seeded-demo-anchors.json`. The eval harness (Phase 3) has to do the same;
+  do not be tempted to collect `data-gt` in the capture to make matching easy.
+- **A deterministic re-check must only *refute* what it can decide.** The
+  re-checks return `confirmed | refuted | inconclusive`, and `refuted` deletes a
+  candidate outright. That is safe for "this element is not a link" or "h2 follows
+  h1, no level was skipped", and unsafe for anything shaped like "this link name
+  is probably fine" — a re-check that guessed would quietly become the thing
+  deciding what users see, with none of the evidence a decision needs. When in
+  doubt it returns `inconclusive` and the verifier gets the last word.
+- **Only the independent verifier can lift an AI claim to `likely`.** A
+  deterministic re-check confirms the *premise* (the name really is "Click
+  here"), not the judgment built on it, so `verificationFor` leaves a
+  re-check-only candidate at `unverified` → `needs-review`. Reversing that would
+  let one model call and one regex look like corroboration.
+- **The verifier is independent structurally, not by instruction.** It is a
+  separate call with its own system prefix whose user turn is rendered from the
+  *snapshot*, never from the judge's output — it never sees the judge's
+  reasoning, confidence, or the other candidates. Passing it the judge's
+  rationale "for context" would turn corroboration into a second signature on the
+  same sentence. Only the claim sentence crosses over, because a claim cannot be
+  verified without being stated.
 - **WCAG 2.2 is 31 Level A + 24 Level AA — not 30/25.** Carrying a WCAG 2.1
   reference forward gives the wrong split because **4.1.1 Parsing (Level A) was
   removed** and two of the six 2.2 additions (3.2.6, 3.3.7) are also Level A. The

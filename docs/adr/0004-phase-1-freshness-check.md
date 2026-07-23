@@ -82,6 +82,11 @@ Option 1 is the presumption until measured. **`COST.md` must be built from measu
 `cache_read_input_tokens`, not from assumed cache hits** — this is exactly the class
 of error that an assumed-savings spreadsheet hides.
 
+> **Decided in [ADR-0005](0005-verifier-prompt-caching.md) (issue #10): option 1.**
+> Building both prompts also showed the hole is wider than described here — the
+> 4096-token floor is above the *text judge's* prefix too, so **no Phase 1 Haiku
+> call prompt-caches**, not just the verifier.
+
 Also worth carrying into Phase 3: at 2576px, a single full-resolution image on
 Sonnet 5 can cost ~4784 tokens, roughly 3× the old 1568px ceiling. The plan's
 normalization to ≤1024w keeps us well under that, so the ≈2.7K-token screenshot

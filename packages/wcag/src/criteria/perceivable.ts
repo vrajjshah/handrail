@@ -27,6 +27,12 @@ export const PERCEIVABLE = [
       { checkId: 'axe.image-alt', class: 'detects-failures' },
       { checkId: 'axe.svg-img-alt', class: 'detects-failures' },
       { checkId: 'axe.object-alt', class: 'detects-failures' },
+      // Two different questions, deliberately split. The triage check reads only
+      // the text — a filename, a bare "image", an "image of …" prefix — and is
+      // cheap enough to run on every image of every page. Whether the alt
+      // actually describes *this* picture needs the pixels, and that is the
+      // vision judge's job.
+      { checkId: 'ai.alt-text-triage', class: 'surfaces-candidates' },
       { checkId: 'ai.alt-vs-image', class: 'surfaces-candidates' },
     ],
     manualProcedure:

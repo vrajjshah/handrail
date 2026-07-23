@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Capture, detection, verdict pipeline. Plain TypeScript — no orchestration dependency.",
+  "description": "Capture, detection, verdict pipeline. Plain TypeScript \u2014 no orchestration dependency.",
   "license": "MIT",
   "exports": {
     ".": "./src/index.ts"
@@ -22,7 +22,11 @@
   "files": [
     "dist"
   ],
+  "scripts": {
+    "capture:seeded-demo": "tsx src/scripts/capture-seeded-demo.ts"
+  },
   "dependencies": {
+    "@handrail/model": "workspace:*",
     "@handrail/schemas": "workspace:*",
     "@handrail/wcag": "workspace:*",
     "axe-core": "^4.12.1",

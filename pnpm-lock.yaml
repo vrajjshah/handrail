@@ -57,6 +57,9 @@ importers:
 
   packages/engine:
     dependencies:
+      '@handrail/model':
+        specifier: workspace:*
+        version: link:../model
       '@handrail/schemas':
         specifier: workspace:*
         version: link:../schemas
