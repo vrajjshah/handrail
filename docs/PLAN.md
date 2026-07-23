@@ -26,6 +26,16 @@ points differ from the source document. Everything else is verbatim.
   that call cannot benefit from the prompt caching §Models assumes. See
   [ADR-0004](adr/0004-phase-1-freshness-check.md) — decide in the Phase 1 verifier issue, and build
   COST.md from measured `cache_read_input_tokens` rather than assumed hits.
+- **[†5] No Phase 1 model call benefits from prompt caching.** §Models claims "~90% cached-input
+  savings within a scan burst" for the per-page judgment calls, and §Cost engineering budgets
+  against it. Measured while building the text judge and verifier (#10): Haiku 4.5's minimum
+  cacheable prefix is **4096 tokens**, and both Phase 1 prefixes are under it — the verifier at
+  ~400 and the text judge at ~2,750 even after the WCAG reference block was added. The saving is
+  reachable in Phase 3 on Sonnet 5 (floor 2048, and a vision call carries an image), but it must be
+  **measured there rather than assumed**. Deliberately not "fixed" by padding the prompts; the
+  reasoning, the arithmetic and the revisit trigger are in
+  [ADR-0005](adr/0005-verifier-prompt-caching.md). The uncached text layer costs ≈$0.14 on a
+  10-page scan, so the $0.25–0.80 hybrid band in §Cost engineering still holds.
 - **[†3] Toolchain pins drifted from the Locked-decisions table** (vitest ^3 → 4, "eslint 9" → 10,
   TypeScript held at 6.0.3 rather than 7 because `typescript-eslint` still caps its peer range at
   `<6.1.0`). Recorded per §0.1's freshness-check rule in
@@ -74,7 +84,7 @@ The spike in `C:\HCL\App Builder` (LangGraph vs Mastra on a WCAG review→fix→
 | Server stack | Fastify 5 + `fastify-type-provider-zod` (auto-OpenAPI), pg-boss (queue in Postgres, no Redis), Drizzle, SSE with Last-Event-ID replay, React 19 + Vite SPA + Tailwind 4 + TanStack Query. |
 | Tests | vitest ^3; custom eval harness as CI gate. [†3] |
 | Runtime | Node `>=22.12`; tsx as runtime through Phase 2 (ADR-0002); Zod 4 from the start (new repo, no legacy); Playwright pinned to its Docker base tag. [†3] |
-| Models | `@handrail/model` provider seam built on **official SDKs**: `anthropic` (`@anthropic-ai/sdk` — **native structured outputs** via `output_config.format` + `zodOutputFormat` = guaranteed schema-valid JSON, image blocks, typed errors), `bedrock` (`@anthropic-ai/bedrock-sdk` Mantle client, `anthropic.`-prefixed model IDs — HCL/enterprise), `openai`, `local-deterministic` (eval backbone, $0). Per-role (verified 2026-07): `claude-haiku-4-5` ($1/$5 MTok) triage/text/verify; **`claude-sonnet-5`** ($3/$15; intro $2/$10 through 2026-08-31) vision/fix — near-Opus agentic quality, high-res vision 2576px. IDs config-swappable; Sonnet 5's tokenizer yields ~30% more text tokens than 4.x — size budgets against it. **Prompt-cache the stable prefix** (system prompt + WCAG reference) across per-page judgment calls (~90% cached-input savings within a scan burst). BYOK for users; hosted demo uses own key behind hard limits. |
+| Models | `@handrail/model` provider seam built on **official SDKs**: `anthropic` (`@anthropic-ai/sdk` — **native structured outputs** via `output_config.format` + `zodOutputFormat` = guaranteed schema-valid JSON, image blocks, typed errors), `bedrock` (`@anthropic-ai/bedrock-sdk` Mantle client, `anthropic.`-prefixed model IDs — HCL/enterprise), `openai`, `local-deterministic` (eval backbone, $0). Per-role (verified 2026-07): `claude-haiku-4-5` ($1/$5 MTok) triage/text/verify; **`claude-sonnet-5`** ($3/$15; intro $2/$10 through 2026-08-31) vision/fix — near-Opus agentic quality, high-res vision 2576px. IDs config-swappable; Sonnet 5's tokenizer yields ~30% more text tokens than 4.x — size budgets against it. **Prompt-cache the stable prefix** (system prompt + WCAG reference) across per-page judgment calls (~90% cached-input savings within a scan burst). [†5] BYOK for users; hosted demo uses own key behind hard limits. |
 
 **Spike pitfalls to not repeat (fresh-code guardrails):** no silent deterministic fallback on provider failure (throw typed error, mark scan `degraded`); no `pnpm.cmd`-style platform hardcodes (execa); don't discard axe `incomplete` results (they feed needs-review); no brittle model-capability regexes (capability map per provider).
 
@@ -152,7 +162,7 @@ An a11y tool with an inaccessible UI is dead on arrival — reviewers will tab t
 
 ### Cost engineering (enforced)
 
-Screenshots normalized (≤1024w ≈2.7K tok; crops ≤300px ≈120 tok). Per-state budgets: text ≤8K/1.5K, vision ≤6K img+2K/1K, verifier ≤2K/300. [†4] **10-page scan: deterministic $0; hybrid ≈$0.25–0.80; hybrid-vision ≈$0.80, ceiling $1.50.** Degradation order: drop vision → drop text → deterministic. Judgment cache `sha256(model+promptVersion+checkId+inputDigest)` → >90% hits on templates/re-scans. Wall clock 10 pages: ≤5 min full, ≤2 min deterministic.
+Screenshots normalized (≤1024w ≈2.7K tok; crops ≤300px ≈120 tok). Per-state budgets: text ≤8K/1.5K, vision ≤6K img+2K/1K, verifier ≤2K/300. [†4] [†5] **10-page scan: deterministic $0; hybrid ≈$0.25–0.80; hybrid-vision ≈$0.80, ceiling $1.50.** Degradation order: drop vision → drop text → deterministic. Judgment cache `sha256(model+promptVersion+checkId+inputDigest)` → >90% hits on templates/re-scans. Wall clock 10 pages: ≤5 min full, ≤2 min deterministic.
 
 ## Phased roadmap (solo, ~8–10 h/wk; every phase demoable)
 
