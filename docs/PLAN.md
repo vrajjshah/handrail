@@ -19,6 +19,10 @@ points differ from the source document. Everything else is verbatim.
 - **Phase 0 environment note.** The MacBook had no Node toolchain at all. Installed during this session:
   `fnm` (Homebrew) → Node v22.23.1 → `corepack enable` → pnpm 11.16.0; `eval "$(fnm env --use-on-cd)"`
   added to `~/.zshrc`.
+- **[†3] Toolchain pins drifted from the Locked-decisions table** (vitest ^3 → 4, "eslint 9" → 10,
+  TypeScript held at 6.0.3 rather than 7 because `typescript-eslint` still caps its peer range at
+  `<6.1.0`). Recorded per §0.1's freshness-check rule in
+  [ADR-0003](adr/0003-toolchain-version-drift.md). Zod 4 is as planned.
 
 ## §0 Kickoff on the MacBook (build machine)
 
@@ -61,8 +65,8 @@ The spike in `C:\HCL\App Builder` (LangGraph vs Mastra on a WCAG review→fix→
 | Name | **Handrail** — `@handrail/*` packages, `handrail` CLI (`npx handrail scan <url>`). Verify npm scope at first publish (fallback `@handrail-a11y`). |
 | Hosting | **Railway** — single Dockerfile (Playwright base image), managed Postgres, ~$5–15/mo; `SERVICE_ROLE=api\|worker\|both` selects the process role from one image. [†2] |
 | Server stack | Fastify 5 + `fastify-type-provider-zod` (auto-OpenAPI), pg-boss (queue in Postgres, no Redis), Drizzle, SSE with Last-Event-ID replay, React 19 + Vite SPA + Tailwind 4 + TanStack Query. |
-| Tests | vitest ^3; custom eval harness as CI gate. |
-| Runtime | Node `>=22.12`; tsx as runtime through Phase 2 (ADR-0002); Zod 4 from the start (new repo, no legacy); Playwright pinned to its Docker base tag. |
+| Tests | vitest ^3; custom eval harness as CI gate. [†3] |
+| Runtime | Node `>=22.12`; tsx as runtime through Phase 2 (ADR-0002); Zod 4 from the start (new repo, no legacy); Playwright pinned to its Docker base tag. [†3] |
 | Models | `@handrail/model` provider seam built on **official SDKs**: `anthropic` (`@anthropic-ai/sdk` — **native structured outputs** via `output_config.format` + `zodOutputFormat` = guaranteed schema-valid JSON, image blocks, typed errors), `bedrock` (`@anthropic-ai/bedrock-sdk` Mantle client, `anthropic.`-prefixed model IDs — HCL/enterprise), `openai`, `local-deterministic` (eval backbone, $0). Per-role (verified 2026-07): `claude-haiku-4-5` ($1/$5 MTok) triage/text/verify; **`claude-sonnet-5`** ($3/$15; intro $2/$10 through 2026-08-31) vision/fix — near-Opus agentic quality, high-res vision 2576px. IDs config-swappable; Sonnet 5's tokenizer yields ~30% more text tokens than 4.x — size budgets against it. **Prompt-cache the stable prefix** (system prompt + WCAG reference) across per-page judgment calls (~90% cached-input savings within a scan burst). BYOK for users; hosted demo uses own key behind hard limits. |
 
 **Spike pitfalls to not repeat (fresh-code guardrails):** no silent deterministic fallback on provider failure (throw typed error, mark scan `degraded`); no `pnpm.cmd`-style platform hardcodes (execa); don't discard axe `incomplete` results (they feed needs-review); no brittle model-capability regexes (capability map per provider).
