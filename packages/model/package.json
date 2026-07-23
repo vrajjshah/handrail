@@ -23,6 +23,8 @@
     "dist"
   ],
   "dependencies": {
+    "@anthropic-ai/bedrock-sdk": "^0.32.0",
+    "@anthropic-ai/sdk": "^0.113.0",
     "@handrail/schemas": "workspace:*",
     "zod": "^4.4.3"
   }
