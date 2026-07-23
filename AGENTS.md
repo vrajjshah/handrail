@@ -9,13 +9,24 @@ reality.
 
 ## Current state
 
-**Phase 0 complete. Phase 1 in progress** — 9 of 12 issues done. The engine can
-capture, detect **and judge**; the model seam has real providers, but nothing in
-the tests or CI reaches a network — every call goes through an injectable
-transport.
+**Phase 0 complete. Phase 1 in progress** — 10 of 12 issues done. The engine can
+capture, detect **and judge**, and a graph now drives all of it end to end; the
+model seam has real providers, but nothing in the tests or CI reaches a network —
+every call goes through an injectable transport.
 
 Landed:
 
+- `@handrail/orchestrator` LangGraph graph (#11) — eight nodes (crawl, capture,
+  detect, judge-text, verdict, site, score, report) over Zod state, run **once**
+  with `streamMode: ['custom','values']`: the custom stream carries `ScanEvent`s
+  while `values` yields the final state. `ScanEventEmitter` owns `seq` and is the
+  only thing that does, and `checkEventStream` is exported so the CLI, the SSE
+  endpoint and the golden scan can all assert well-orderedness rather than each
+  re-deriving it. A `ScanDriver` interface keeps Playwright out of this package
+  and lets the acceptance replay #10's committed seeded-demo capture browser-free
+  on three OSes. `layering.test.ts` asserts no other workspace package depends on
+  `@langchain/*`, drilled by faking a violation. Judges once per **URL**, not per
+  state, and writes `hallucination-ledger.json` — both handed over by #10.
 - `@handrail/engine` text judge + verdict pipeline (#10) — **the trust core.**
   One batched `text-judge` call per state over a compact, sanitised
   element-index extract (23 elements / ~860 tokens on the seeded demo, against a
@@ -94,14 +105,23 @@ Verified working: `pnpm install && pnpm test` green from a clean clone,
 
 ## Next up
 
-**The orchestrator (#11)**: LangGraph 1.x, 8 nodes, `streamMode: "custom"`
-emitting `ScanEvent`s, with `@langchain/*` confined to that package. It wires
-`runTextJudgment` into the `judge-text` phase, turns `VerdictDegradation`s into
-scan-level `Degradation`s (`degradationForModelError` is already there for the
-model ones), and owns writing `hallucination-ledger.json` next to the report —
-the engine builds the ledger, it does not choose where a scan's artifacts live.
+**The CLI (#12)**: `handrail scan <url> --mode hybrid --report html` with live
+progress. It consumes `streamScan` from `@handrail/orchestrator` — the event
+stream is already the product, so the CLI renders it rather than re-deriving
+anything. **#12 is also where the cassette corpus finally gets recorded**, since
+recording needs a real key against a real page, which closes #9's outstanding
+acceptance. Then the golden-scan snapshot (#13).
 
-**Still open from #10, deliberately:**
+**Still open, deliberately:**
+
+- **Site-level checks and the score/report nodes are placeholders.** `site`,
+  `score` and `report` currently emit a `log` and pass state through: the graph
+  shape and the event contract are what #11 was for. Site-level checks are #45;
+  the per-SC rollup and report artifacts land with the CLI and #13.
+- **The graph is linear, and its channels are last-write-wins because of that.**
+  When the crawler grows a `Send` fan-out (#46), the accumulating channels
+  (`captures`, `findings`, `rejected`, `degradations`) need concat reducers and
+  the emitter needs a writer per task instead of one mutable sink.
 
 - **The cassette corpus is still empty.** #10 built the prompts and wired
   `CURRENT_PROMPT_VERSIONS` into `findStaleCassettes` / `findUncoveredRoles`
@@ -286,6 +306,16 @@ comparison scorecard wants a second rule engine.
   way *out* but the ledger records the **canonical** id (`claude-sonnet-5`, not
   `anthropic.claude-sonnet-5`), so pricing and `capabilityFor` stay provider-agnostic
   and a new model only needs registering under its canonical id. Don't fork the impl.
+- **Streaming the graph and then invoking it runs the whole scan twice.**
+  `graph.stream(..., {streamMode:'custom'})` yields only what nodes write to
+  `config.writer`, *not* the final state — so reaching for `graph.invoke()`
+  afterwards to get the state re-runs every node: two captures, two judge calls,
+  double the money. Use `streamMode: ['custom','values']` and read the last
+  `values` chunk. I wrote the two-run version first and caught it on review.
+- **LangGraph's compiled graph type cannot be named from outside its package**
+  (TS2883, "not portable"). `createScanGraph` therefore declares a narrow
+  `CompiledScanGraph` return interface covering the one method we drive, with a
+  single localised cast at the return. Don't try to re-export the inferred type.
 - **`promptVersion` is part of the cassette key, so bumping a prompt does not
   replay a stale answer — it misses.** That is the safe failure, but it means a
   revised prompt silently has *zero* replay coverage until it is re-recorded, and a
