@@ -2,7 +2,7 @@ import { chromium, type Browser } from 'playwright';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { captureState } from '../../capture/state-capture.js';
-import { serveSeededDemo, type FixtureServer } from '../../capture/__test__/serve-fixture.js';
+import { serveSeededDemo, type FixtureServer } from '../../scripts/serve-fixture.js';
 import { allFindings } from './types.js';
 import { runHeuristics } from './run-heuristics.js';
 import type { HeuristicResult } from './types.js';
