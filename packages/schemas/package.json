@@ -1,0 +1,26 @@
+{
+  "name": "@handrail/schemas",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Zod contracts shared by every Handrail package and surface.",
+  "license": "MIT",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "publishConfig": {
+    "access": "public",
+    "main": "./dist/index.js",
+    "types": "./dist/index.d.ts",
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      }
+    }
+  },
+  "files": ["dist"],
+  "dependencies": {
+    "zod": "^4.4.3"
+  }
+}
