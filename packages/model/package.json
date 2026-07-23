@@ -22,6 +22,9 @@
   "files": [
     "dist"
   ],
+  "scripts": {
+    "cassettes:refresh": "tsx src/scripts/refresh-cassettes.ts"
+  },
   "dependencies": {
     "@anthropic-ai/bedrock-sdk": "^0.32.0",
     "@anthropic-ai/sdk": "^0.113.0",
