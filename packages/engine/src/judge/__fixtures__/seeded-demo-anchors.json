@@ -1,0 +1,20 @@
+{
+  "gt-008": "/html[1]/body[1]/div[1]/div[1]/header[1]/nav[1]/ul[1]/li[3]/a[1]",
+  "gt-001": "/html[1]/body[1]/div[1]/div[1]/main[1]/section[1]/img[1]",
+  "gt-004": "/html[1]/body[1]/div[1]/div[1]/main[1]/section[1]/p[1]",
+  "trap-contrast-ok": "/html[1]/body[1]/div[1]/div[1]/main[1]/section[1]/p[2]",
+  "gt-013": "/html[1]/body[1]/div[1]/div[1]/main[1]/section[2]/h3[1]",
+  "gt-002": "/html[1]/body[1]/div[1]/div[1]/main[1]/section[2]/div[1]/img[1]",
+  "trap-decorative-alt": "/html[1]/body[1]/div[1]/div[1]/main[1]/section[2]/div[1]/img[2]",
+  "gt-012": "/html[1]/body[1]/div[1]/div[1]/main[1]/section[2]/img[1]",
+  "gt-006": "/html[1]/body[1]/div[1]/div[1]/main[1]/section[2]/p[1]/a[1]",
+  "gt-007": "/html[1]/body[1]/div[1]/div[1]/main[1]/section[3]/table[1]",
+  "gt-009": "/html[1]/body[1]/div[1]/div[1]/main[1]/section[3]/p[1]/span[1]/button[1]",
+  "trap-target-size-ok": "/html[1]/body[1]/div[1]/div[1]/main[1]/section[3]/p[2]/button[1]",
+  "trap-target-size-spacing": "/html[1]/body[1]/div[1]/div[1]/main[1]/section[3]/p[3]/button[1]",
+  "gt-010": "/html[1]/body[1]/div[1]/div[1]/main[1]/section[4]/p[1]/span[1]",
+  "gt-003": "/html[1]/body[1]/div[1]/div[1]/main[1]/section[4]/form[1]/div[1]/input[1]",
+  "trap-labelled-control": "/html[1]/body[1]/div[1]/div[1]/main[1]/section[4]/form[1]/div[2]/select[1]",
+  "trap-focus-ring-ok": "/html[1]/body[1]/div[1]/div[1]/main[1]/section[4]/form[1]/button[1]",
+  "gt-005": "/html[1]/body[1]/div[1]/div[1]/main[1]/section[5]/button[1]"
+}
