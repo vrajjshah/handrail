@@ -54,11 +54,19 @@ export interface RawMediaInventory {
   thirdPartyMediaEmbeds: number;
 }
 
+export interface RawLayoutMetrics {
+  scrollWidth: number;
+  clientWidth: number;
+  scrollHeight: number;
+  clientHeight: number;
+}
+
 export interface RawCollectorResult {
   documentLang: string | null;
   title: string;
   elements: RawElementRecord[];
   media: RawMediaInventory;
+  layout: RawLayoutMetrics;
   totalElements: number;
   capped: boolean;
 }
@@ -358,11 +366,18 @@ export function collectElementIndex(options: BrowserCollectorOptions): RawCollec
     ordinal += 1;
   }
 
+  const root = document.documentElement;
   return {
-    documentLang: document.documentElement.getAttribute('lang'),
+    documentLang: root.getAttribute('lang'),
     title: document.title,
     elements,
     media,
+    layout: {
+      scrollWidth: root.scrollWidth,
+      clientWidth: root.clientWidth,
+      scrollHeight: root.scrollHeight,
+      clientHeight: root.clientHeight,
+    },
     totalElements: all.length,
     capped: elements.length >= options.maxElements,
   };

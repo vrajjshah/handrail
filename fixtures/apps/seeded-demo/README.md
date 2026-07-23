@@ -1,7 +1,7 @@
 # seeded-demo — Northwind Supper Club
 
 A small React app that is **wrong on purpose**. It is Handrail's recall baseline:
-14 planted WCAG 2.2 A/AA defects and 5 traps, all recorded in
+14 planted WCAG 2.2 A/AA defects and 6 traps, all recorded in
 [`ground-truth.json`](ground-truth.json).
 
 ```bash

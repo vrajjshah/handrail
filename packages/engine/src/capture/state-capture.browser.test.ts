@@ -81,8 +81,8 @@ describe('capturing the seeded demo', () => {
       // 12 of the 14 seeded defects carry an anchor on the initial state:
       // gt-011 is the <html> element's *missing* lang attribute, so it has no
       // anchor to carry, and gt-014 only exists once the dialog is opened.
-      // Plus the 5 traps.
-      expect(anchorXpaths).toHaveLength(17);
+      // Plus the 6 traps.
+      expect(anchorXpaths).toHaveLength(18);
 
       const indexed = new Set(state.elements.map((el) => el.xpath));
       for (const xpath of anchorXpaths) {
@@ -159,9 +159,9 @@ describe('capturing the seeded demo', () => {
 
       // aria-label on an icon button.
       const iconButton = state.elements.find(
-        (el) => el.attributes['aria-label']?.startsWith('Add Domaine Perrot'),
+        (el) => el.attributes['aria-label'] === 'One more bottle of Domaine Perrot',
       );
-      expect(iconButton?.accessibleName).toBe('Add Domaine Perrot to my list');
+      expect(iconButton?.accessibleName).toBe('One more bottle of Domaine Perrot');
     } finally {
       await close();
     }
@@ -181,11 +181,11 @@ describe('capturing the seeded demo', () => {
     const { capture: state, close } = await capture();
     try {
       const positiveTabIndex = state.elements.filter((el) => el.tabIndex > 0);
-      // gt-008 plants three positive tabindex values on the navigation links.
-      expect(positiveTabIndex.map((el) => el.tabIndex).sort()).toEqual([2, 3, 4]);
+      // gt-008 plants a single positive tabindex on the Contact link.
+      expect(positiveTabIndex.map((el) => el.tabIndex)).toEqual([1]);
 
       const smallButton = state.elements.find(
-        (el) => el.attributes['aria-label']?.startsWith('Add Domaine Perrot'),
+        (el) => el.attributes['aria-label'] === 'One more bottle of Domaine Perrot',
       );
       expect(smallButton?.focusable).toBe(true);
 
@@ -448,6 +448,6 @@ describe('the fixture build is the one under test', () => {
     };
 
     expect(groundTruth.expected).toHaveLength(14);
-    expect(groundTruth.traps).toHaveLength(5);
+    expect(groundTruth.traps).toHaveLength(6);
   });
 });

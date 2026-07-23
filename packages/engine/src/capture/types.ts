@@ -124,6 +124,22 @@ export const CaptureArtifactsSchema = z.object({
 });
 
 /**
+ * Document-level layout metrics, read once at capture time.
+ *
+ * `scrollWidth > clientWidth` is the ground truth for "this page scrolls
+ * horizontally" — the signal `resp.reflow-320` decides 1.4.10 from. Recording it
+ * in the capture keeps the reflow check a pure function over captured data rather
+ * than something that has to drive the browser again.
+ */
+export const LayoutMetricsSchema = z.object({
+  scrollWidth: z.number().nonnegative(),
+  clientWidth: z.number().nonnegative(),
+  scrollHeight: z.number().nonnegative(),
+  clientHeight: z.number().nonnegative(),
+});
+export type LayoutMetrics = z.infer<typeof LayoutMetricsSchema>;
+
+/**
  * One captured page state — the "capture once, judge many" unit.
  *
  * Every detection layer reads from this rather than driving the browser itself,
@@ -136,6 +152,7 @@ export const StateCaptureSchema = z.object({
   title: z.string(),
   documentLang: z.string().nullable(),
   viewport: ViewportSchema,
+  layout: LayoutMetricsSchema,
   capturedAt: IsoTimestampSchema,
   /** How this state was reached, when it took interaction rather than a URL. */
   interactionPath: z.array(z.string()).default([]),

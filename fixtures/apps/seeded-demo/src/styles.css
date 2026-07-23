@@ -61,14 +61,32 @@ nav.site a {
 
 /*
  * SEEDED ISSUE gt-005 (WCAG 2.4.7): the focus indicator is removed globally.
- * A keyboard user cannot tell where they are. This is the single most common
- * real-world failure and the reason kbd.focus-visible exists.
+ * The global reset below removes the default ring, then a global :focus-visible
+ * replacement restores one for keyboard users — the correct pattern. The seeded
+ * defect is local: gt-005's button also kills the replacement, so it alone has
+ * no focus indicator. This is the common real bug — a focus style that works
+ * everywhere except one custom control.
  */
 button:focus,
 a:focus,
 input:focus,
 select:focus,
 textarea:focus {
+  outline: none;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 3px solid #12507a;
+  outline-offset: 2px;
+}
+
+/* SEEDED ISSUE gt-005: this one button defeats the global keyboard-focus
+   replacement, leaving it with no visible focus indicator at all. */
+.no-focus-ring:focus-visible {
   outline: none;
 }
 
@@ -104,7 +122,9 @@ textarea:focus {
 
 /*
  * SEEDED ISSUE gt-009 (WCAG 2.5.8): an 18x18 CSS-pixel hit area, under the
- * 24x24 minimum.
+ * 24x24 minimum. Whether that is a failure depends on spacing — see the two
+ * .stepper buttons (crowded, a real failure) vs the isolated one
+ * (trap-target-size-spacing, rescued by the spacing exception).
  */
 .icon-button--small {
   width: 18px;
@@ -115,6 +135,12 @@ textarea:focus {
   font-size: 11px;
   line-height: 1;
   cursor: pointer;
+}
+
+/* No gap between the stepper buttons: their 24px spacing circles intersect. */
+.stepper {
+  display: inline-flex;
+  gap: 0;
 }
 
 /* Trap for gt-009: exactly 24x24, which passes. Must NOT be reported. */
@@ -201,6 +227,14 @@ textarea:focus {
 
 .gallery img {
   border-radius: 10px;
+}
+
+/* Images are responsive, so the only thing that overflows a 320px viewport is
+   the deliberately fixed-width wine table (gt-007) — keeping reflow's ground
+   truth to exactly one seeded defect. */
+img {
+  max-width: 100%;
+  height: auto;
 }
 
 footer.site {

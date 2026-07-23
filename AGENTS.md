@@ -14,6 +14,12 @@ now capture a page; nothing detects or reports yet.
 
 Landed:
 
+- `@handrail/engine` first four heuristics (#4-heuristics) — `kbd.walk`,
+  `kbd.focus-visible`, `ptr.target-size`, `resp.reflow-320`. One keyboard traversal
+  (real Tab presses) drives both kbd checks; ptr and reflow are pure over the
+  element index. Full exception ladders (target-size spacing/inline, reflow 320px
+  gating). Catches gt-005/007/008/009; both target-size traps and the focus-ring
+  trap correctly pass. Added `layout` to the capture for reflow.
 - `@handrail/engine` axe detection layer (#5) — runs axe in-page after the capture,
   maps results to Findings via `criteriaForAxeRule()`, keeps `incomplete`
   (needs-review) and `passes` (carried as positive evidence, not findings), and
@@ -43,18 +49,13 @@ Verified working: `pnpm install && pnpm test` green from a clean clone,
 
 ## Next up
 
-**Phase 1: the first four heuristics** — `kbd.walk`, `kbd.focus-visible`,
-`ptr.target-size`, `resp.reflow-320`. The element index already carries
-`tabIndex`, `focusable`, `bbox` and the outline styles they need, and the fixture
-plants gt-005/007/008/009 for exactly these. This is where the project starts
-catching what axe cannot — kbd.walk drives real Tab presses (recall React's
-synthetic onBlur caveat), and reflow needs the 320px viewport.
+**Phase 1: `@handrail/model` (#6)** — the provider seam, with `local-deterministic`
+first so the eval backbone exists before anything depends on a network call. Read
+the API-shape constraints in ADR-0004 before writing it (Sonnet 5 rejects sampling
+params, no budget_tokens, adaptive thinking default, Bedrock forced-tool_choice).
 
-Then:
-
-1. `@handrail/model` (#6) — the provider seam, with `local-deterministic` first so
-   the eval backbone exists before anything depends on a network call. Read the
-   API-shape constraints in ADR-0004 before writing it.
+After that the text judge + verdict pipeline (#9) is the big one — it grounds AI
+candidates against the element index the capture already produces.
 
 **Deferred (optional, from the plan's §Engine layer A):** IBM equal-access as a
 ceiling-limited `secondOpinion`. Not built — it is marked optional, adds the heavy
@@ -96,6 +97,24 @@ comparison scorecard wants a second rule engine.
   first (`pnpm --filter @handrail/fixture-seeded-demo build`).
 - **`erasableSyntaxOnly` forbids TypeScript parameter properties.** Write
   `constructor(x: T) { this.x = x; }`, not `constructor(private readonly x: T)`.
+- **The exception ladders are load-bearing — and the fixture kept over-claiming.**
+  Three seeded defects had to be corrected because the naive reading was wrong, all
+  verified empirically before changing anything: gt-009 (18×18 target) *passes*
+  2.5.8 via the spacing exception when isolated — axe agrees — so it was re-authored
+  crowded against a full-size neighbour; the global `outline:none` removed focus
+  from *every* control, so the fixture now models the realistic pattern (global
+  reset + global `:focus-visible` replacement, with gt-005 alone defeating it); and
+  the fixture images overflowed at 320px, so `img { max-width: 100% }` was added to
+  leave only the seeded table. Each check now produces exactly one finding per
+  seeded defect. Lesson: when a fixture assertion and a correct check disagree,
+  measure before assuming the check is wrong.
+- **Component dedupe is deferred.** A page-wide cause (one bad CSS rule) can fail
+  many elements; each currently becomes its own finding. The plan's component
+  dedupe (one finding with `pages[]`) is a verdict/site-level concern for later.
+- **The keyboard traversal uses real Tab presses**, per the long-standing React
+  synthetic-event caveat. It reads `document.activeElement` from the isolated world
+  after each `page.keyboard.press('Tab')`, which also means `:focus-visible` styles
+  are in force — exactly what `kbd.focus-visible` needs.
 - **axe passes placeholder-only labels — the fixture's gt-003 blind spot.**
   Chromium computes an input's accessible name *from* its placeholder, so axe's
   `label` rule passes a placeholder-only field. It is still a real 3.3.2 failure

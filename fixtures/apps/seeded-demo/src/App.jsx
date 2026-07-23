@@ -21,22 +21,19 @@ function Header() {
       <nav className="site">
         <ul>
           {/*
-            SEEDED ISSUE gt-008 (WCAG 2.4.3): positive tabindex values reorder the
-            tab sequence so it no longer follows the visual order. Tabbing from the
-            wordmark lands on "Contact" before "Menu".
+            SEEDED ISSUE gt-008 (WCAG 2.4.3): a single positive tabindex pulls
+            "Contact" to the front of the tab sequence, so it receives focus
+            before "Menu" and "Cellar" — which precede it visually and in the
+            DOM. The other two links are left at their natural order.
           */}
           <li>
-            <a href="#menu" data-gt="gt-008" tabIndex={3}>
-              Menu
-            </a>
+            <a href="#menu">Menu</a>
           </li>
           <li>
-            <a href="#cellar" tabIndex={4}>
-              Cellar
-            </a>
+            <a href="#cellar">Cellar</a>
           </li>
           <li>
-            <a href="#contact" tabIndex={2}>
+            <a href="#contact" data-gt="gt-008" tabIndex={1}>
               Contact
             </a>
           </li>
@@ -175,21 +172,48 @@ function Cellar() {
 
       <p>
         {/*
-          SEEDED ISSUE gt-009 (WCAG 2.5.8): an 18x18 target, under the 24x24 minimum.
+          SEEDED ISSUE gt-009 (WCAG 2.5.8): an 18x18 target sat flush against a
+          full-size one, so its 24px spacing circle intersects a neighbouring
+          target and the spacing exception does NOT rescue it. The full-size
+          neighbour passes on size, so only the undersized button fails.
         */}
-        <button type="button" className="icon-button--small" data-gt="gt-009" aria-label="Add Domaine Perrot to my list">
+        <span className="stepper">
+          <button type="button" className="icon-button--small" data-gt="gt-009" aria-label="One more bottle of Domaine Perrot">
+            +
+          </button>
+          <button type="button" className="icon-button--ok" aria-label="Add Domaine Perrot to my list">
+            Add
+          </button>
+        </span>{' '}
+        to list
+      </p>
+
+      <p>
+        {/* Trap: exactly 24x24, which passes 2.5.8 on size. Must NOT be reported. */}
+        <button
+          type="button"
+          className="icon-button--ok"
+          data-trap="trap-target-size-ok"
+          aria-label="Add Keller und Sohn to my list"
+        >
           +
         </button>{' '}
         add to list
       </p>
 
       <p>
-        {/* Trap: exactly 24x24, which passes 2.5.8. Must NOT be reported. */}
+        {/*
+          Trap: an 18x18 target that is under the minimum but ISOLATED — the
+          nearest other target is far more than 24px away, so its 24px spacing
+          circle intersects nothing and the spacing exception passes it. A check
+          that flags every undersized target without the exception ladder reports
+          this, and drowns real sites in false positives. Must NOT be reported.
+        */}
         <button
           type="button"
-          className="icon-button--ok"
-          data-trap="trap-target-size-ok"
-          aria-label="Add Keller und Sohn to my list"
+          className="icon-button--small"
+          data-trap="trap-target-size-spacing"
+          aria-label="Add Quinta do Vale to my list"
         >
           +
         </button>{' '}
@@ -272,7 +296,7 @@ function NewsletterDialog() {
       <section className="card">
         <h2>Supper notes</h2>
         <p>A short letter each month: what is coming in, and when seatings open.</p>
-        <button type="button" className="primary" data-gt="gt-005" onClick={() => setOpen(true)}>
+        <button type="button" className="primary no-focus-ring" data-gt="gt-005" onClick={() => setOpen(true)}>
           Join the list
         </button>
       </section>

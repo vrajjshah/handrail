@@ -56,6 +56,7 @@ function capture(overrides: Partial<StateCapture> = {}): StateCapture {
     title: 'Test',
     documentLang: 'en',
     viewport: { label: 'desktop', width: 1440, height: 900, deviceScaleFactor: 1 },
+    layout: { scrollWidth: 1440, clientWidth: 1440, scrollHeight: 2000, clientHeight: 900 },
     capturedAt: '2026-07-23T10:00:00.000Z',
     interactionPath: [],
     html: '<html></html>',

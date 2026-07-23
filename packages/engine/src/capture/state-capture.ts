@@ -186,6 +186,7 @@ export async function captureState(
       title: collected.title,
       documentLang: collected.documentLang,
       viewport: options.viewport,
+      layout: collected.layout,
       capturedAt: new Date().toISOString(),
       interactionPath,
       html: htmlTruncated ? rawHtml.slice(0, maxHtmlLength) : rawHtml,
