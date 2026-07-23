@@ -16,7 +16,8 @@ Landed:
 
 - `@handrail/wcag` — all 55 WCAG 2.2 A/AA criteria as typed records, with
   `coverageMatrix()` / `coverageSummary()` and per-criterion applicability
-  detectors. 31 more tests. Closes #2.
+  detectors (#2), plus the generated axe rule map with its CI stamp check (#3).
+  118 tests total.
 - ADR-0004, the Phase 1 freshness check: no drift on models, prices or library
   pins, but it found a real hole in the plan's cost model (see gotchas).
 - `@handrail/schemas` v1 — Finding, ScanTarget, ScanOptions, ScanRecord, ScanEvent,
@@ -34,18 +35,18 @@ Verified working: `pnpm install && pnpm test` green from a clean clone,
 
 ## Next up
 
-**Phase 1, issue #3: the generated axe rule map.** Build it from `axe.getRules()`
-tags into a stamped file, and have CI assert the stamp matches the installed axe
-version with zero unmapped wcag-tagged rules — so an axe upgrade that adds a rule
-fails the build instead of silently going uncovered. `@handrail/wcag` already
-declares which check ids cover which criteria; the map is the other half.
+**Phase 1, issue #4: `@handrail/engine` capture core.** StateCapture and the
+element index. Everything downstream reads from these, so their shape matters more
+than their speed. It also has to produce the `ApplicabilitySignals` that
+`@handrail/wcag` consumes, and the element index is what the verdict pipeline
+grounds AI claims against — an elemId that does not resolve is how a hallucinated
+finding gets rejected.
 
-After that, roughly in dependency order:
+After that:
 
-1. `@handrail/engine` capture core (#4) — StateCapture and the element index.
-   Everything downstream reads from these, so their shape matters more than their
-   speed. It also has to produce the `ApplicabilitySignals` that `@handrail/wcag`
-   consumes.
+1. `@handrail/engine` axe detection layer (#5) — wire axe-core through
+   `criteriaForAxeRule()`; keep `incomplete` (feeds needs-review) and `passes`
+   (a criterion can only be reported `pass` on positive evidence).
 2. `@handrail/model` (#6) — the provider seam, with `local-deterministic` first so
    the eval backbone exists before anything depends on a network call. Read the
    API-shape constraints in ADR-0004 before writing it.
@@ -57,6 +58,20 @@ After that, roughly in dependency order:
   removed** and two of the six 2.2 additions (3.2.6, 3.3.7) are also Level A. The
   total lands on 55 either way, which is exactly what makes it easy to miss. This
   bit during authoring — the test caught it, not review.
+- **axe reaches only 23 of the 55 criteria** — measured from its own metadata, not
+  cited. 32 have no axe rule at all. Do not assume a criterion is uncovered without
+  checking: axe 4.12 does ship `target-size` for 2.5.8, which is easy to get wrong.
+- **`detectionCoverage` must name real axe rule ids, and the test enforces it.**
+  Authoring by memory produced seven invented names (`axe.table-headers`,
+  `axe.list-structure`, `axe.interactive-role`, …) and four criteria axe does not
+  tag. Check `axeRulesForCriterion(sc)` before adding an `axe.*` entry.
+- **Going beyond axe's tagging is allowed but must be marked** `attribution:
+  'handrail'`. The test fails an unmarked claim axe does not make *and* a marked
+  claim axe does make, so the annotations cannot rot as axe evolves.
+- **The axe map is generated and committed.** `pnpm --filter @handrail/wcag axe-map`
+  regenerates it; `axe.test.ts` fails if the committed file has drifted from the
+  installed axe. On an axe upgrade, regenerate deliberately and read the diff — that
+  diff *is* the change in what Handrail claims to cover.
 - **`@handrail/wcag` proves its own completeness at compile time.** The
   `MustEqual<DefinedScId, KnownScId>` line in `packages/wcag/src/index.ts` fails to
   typecheck if a criterion is missing *or* extra. Verified by drill in both

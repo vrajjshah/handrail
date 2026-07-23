@@ -114,6 +114,21 @@ export type CoverageClass = (typeof COVERAGE_CLASSES)[number];
 export interface DetectionCoverage {
   checkId: CheckId;
   class: CoverageClass;
+  /**
+   * Who makes the criterion attribution.
+   *
+   * `tool` — the default — means the underlying engine tags the rule with this
+   * criterion itself, so the claim is checkable against the tool's own metadata.
+   * `handrail` means we attribute it further than the tool does: axe tags its
+   * `label` rule only 4.1.2, for instance, but a form field with no label is the
+   * textbook 3.3.2 failure (WCAG failure technique F68).
+   *
+   * Marking the difference is the point. A report can then say which claims come
+   * from the tool and which are ours, and `axe.test.ts` enforces the distinction
+   * in both directions — an unmarked claim axe does not make fails, and a marked
+   * claim axe *does* make fails too, so the annotations cannot go stale.
+   */
+  attribution?: 'tool' | 'handrail';
 }
 
 /**

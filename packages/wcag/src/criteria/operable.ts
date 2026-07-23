@@ -23,7 +23,8 @@ export const OPERABLE = [
     testability: 'machine-assisted',
     detectionCoverage: [
       { checkId: 'kbd.walk', class: 'detects-failures' },
-      { checkId: 'axe.interactive-role', class: 'detects-failures' },
+      { checkId: 'axe.scrollable-region-focusable', class: 'detects-failures' },
+      { checkId: 'axe.frame-focusable-content', class: 'detects-failures' },
     ],
     manualProcedure:
       'Unplug the mouse and complete every task on the page. Anything you cannot reach or activate fails.',
@@ -176,7 +177,7 @@ export const OPERABLE = [
     testability: 'machine-assisted',
     detectionCoverage: [
       { checkId: 'kbd.skip-link', class: 'detects-failures' },
-      { checkId: 'axe.landmark-regions', class: 'detects-failures' },
+      { checkId: 'axe.bypass', class: 'detects-failures' },
     ],
     manualProcedure:
       'Press Tab once on a fresh page load. Confirm a skip mechanism appears, works, and actually moves focus to the main content.',
@@ -231,10 +232,9 @@ export const OPERABLE = [
       'DOM order not matching visual order after CSS reordering',
     ],
     testability: 'machine-decidable',
-    detectionCoverage: [
-      { checkId: 'kbd.walk', class: 'decides' },
-      { checkId: 'axe.tabindex-positive', class: 'detects-failures' },
-    ],
+    // axe has no WCAG-tagged rule for focus order — its `tabindex` rule is
+    // best-practice only — so walking the real tab order is the whole coverage.
+    detectionCoverage: [{ checkId: 'kbd.walk', class: 'decides' }],
     manualProcedure:
       'Tab through the page and watch the focus indicator. It should move in the order a reader would expect, and dialogs should trap and restore focus deliberately.',
     en301549: '9.2.4.3',
@@ -312,7 +312,7 @@ export const OPERABLE = [
     ],
     testability: 'machine-assisted',
     detectionCoverage: [
-      { checkId: 'axe.empty-heading', class: 'detects-failures' },
+      { checkId: 'axe.empty-heading', class: 'detects-failures', attribution: 'handrail' },
       { checkId: 'ai.heading-quality', class: 'surfaces-candidates' },
     ],
     manualProcedure:
@@ -439,7 +439,9 @@ export const OPERABLE = [
       'Icon plus text where aria-label describes only the icon',
     ],
     testability: 'machine-decidable',
-    detectionCoverage: [{ checkId: 'axe.label-in-name', class: 'detects-failures' }],
+    detectionCoverage: [
+      { checkId: 'axe.label-content-name-mismatch', class: 'detects-failures' },
+    ],
     manualProcedure:
       'For each labelled control, confirm the accessible name starts with or contains the visible text, in the same order.',
     en301549: '9.2.5.3',

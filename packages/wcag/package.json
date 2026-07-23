@@ -19,8 +19,16 @@
       }
     }
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "dependencies": {
     "@handrail/schemas": "workspace:*"
+  },
+  "devDependencies": {
+    "axe-core": "^4.12.1"
+  },
+  "scripts": {
+    "axe-map": "tsx src/scripts/generate-axe-map.ts"
   }
 }
