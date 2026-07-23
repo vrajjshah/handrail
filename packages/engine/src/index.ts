@@ -1,3 +1,15 @@
+/**
+ * Playwright's page handles, re-exported.
+ *
+ * `captureState`, `runAxeDetection` and `runHeuristics` all take a `Page`, so
+ * the type is already part of this package's public surface — a caller that
+ * cannot name it cannot write a function that passes one on. Re-exporting it
+ * lets the orchestrator drive a browser through the engine without taking its
+ * own dependency on Playwright, which is what keeps the dependency graph honest
+ * about who owns the browser: this package does.
+ */
+export type { Browser, BrowserContext, Page } from 'playwright';
+
 export * from './capture/types.js';
 export * from './capture/state-capture.js';
 export * from './capture/artifacts.js';
