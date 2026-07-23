@@ -4,7 +4,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { captureState } from '../capture/state-capture.js';
 import type { StateCapture } from '../capture/types.js';
-import { serveSeededDemo, type FixtureServer } from '../capture/__test__/serve-fixture.js';
+import { serveSeededDemo, type FixtureServer } from '../scripts/serve-fixture.js';
 import { runAxeDetection } from './axe-runner.js';
 import type { AxeDetectionResult } from './types.js';
 

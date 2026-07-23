@@ -13,7 +13,7 @@
   ],
   "exclude": [
     "src/**/*.test.ts",
-    "src/__test__/**",
+    "src/**/__test__/**",
     "src/scripts/**"
   ],
   "references": [

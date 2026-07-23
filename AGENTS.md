@@ -348,6 +348,14 @@ comparison scorecard wants a second rule engine.
   project service read it); `tsconfig.build.json` excludes them so nothing
   test-shaped reaches `dist`. A new package needs **both** files and an entry in
   **both** root configs, or it will silently drop out of typecheck.
+- **`__test__/` is dropped from the build at any depth.** The exclude glob is
+  `src/**/__test__/**`, not `src/__test__/**` — the narrow form only covered the
+  top-level folder, so `src/capture/__test__/serve-fixture.ts` was quietly
+  compiled into `dist`. The corollary: a helper imported by anything the build
+  keeps **cannot live in a `__test__/` folder**, or restoring it to `dist` is the
+  only way to keep that importer compiling. Put it next to its non-test consumer
+  instead — `src/scripts/serve-fixture.ts` and `seeded-demo-fixture.ts` are both
+  there because `capture-seeded-demo.ts` imports them.
 - **`fixtures/**` is excluded from eslint** — `eslint-plugin-jsx-a11y` would flag
   most of the seeded app, which is the point. Do not "fix" anything in there; see
   its [README](fixtures/apps/seeded-demo/README.md).

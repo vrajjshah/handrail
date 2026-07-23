@@ -21,10 +21,10 @@ import { fileURLToPath } from 'node:url';
 
 import { chromium } from 'playwright';
 
-import { serveSeededDemo } from '../capture/__test__/serve-fixture.js';
 import { IsolatedWorld } from '../capture/isolated-world.js';
 import { ConsoleRecorder, captureState } from '../capture/state-capture.js';
 import { DESKTOP, normalizeCapture, readGroundTruthAnchors } from './seeded-demo-fixture.js';
+import { serveSeededDemo } from './serve-fixture.js';
 
 async function main(): Promise<void> {
   const server = await serveSeededDemo();
