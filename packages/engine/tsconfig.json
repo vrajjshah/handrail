@@ -8,5 +8,5 @@
     "types": ["node"]
   },
   "include": ["src/**/*.ts"],
-  "references": [{ "path": "../schemas" }, { "path": "../wcag" }]
+  "references": [{ "path": "../schemas" }, { "path": "../wcag" }, { "path": "../model" }]
 }

@@ -11,6 +11,7 @@
   "exclude": ["src/**/*.test.ts", "src/**/*.browser.test.ts", "src/__test__/**"],
   "references": [
     { "path": "../schemas/tsconfig.build.json" },
-    { "path": "../wcag/tsconfig.build.json" }
+    { "path": "../wcag/tsconfig.build.json" },
+    { "path": "../model/tsconfig.build.json" }
   ]
 }
