@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 520 220" width="520" height="220">
+  <!--
+    SEEDED ISSUE gt-012: this is an image of text (WCAG 1.4.5). The opening hours
+    exist only as rendered glyphs, so they cannot be resized, restyled, translated
+    or read by a screen reader. Do not replace it with real text.
+  -->
+  <rect width="520" height="220" rx="10" fill="#2c1f16" />
+  <text x="260" y="52" font-family="Georgia, serif" font-size="30" fill="#f4e7d3" text-anchor="middle">Opening Hours</text>
+  <text x="60" y="104" font-family="Georgia, serif" font-size="20" fill="#e0cdb0">Tuesday – Thursday</text>
+  <text x="460" y="104" font-family="Georgia, serif" font-size="20" fill="#e0cdb0" text-anchor="end">17:00 – 22:00</text>
+  <text x="60" y="144" font-family="Georgia, serif" font-size="20" fill="#e0cdb0">Friday – Saturday</text>
+  <text x="460" y="144" font-family="Georgia, serif" font-size="20" fill="#e0cdb0" text-anchor="end">17:00 – 00:30</text>
+  <text x="60" y="184" font-family="Georgia, serif" font-size="20" fill="#e0cdb0">Sunday</text>
+  <text x="460" y="184" font-family="Georgia, serif" font-size="20" fill="#e0cdb0" text-anchor="end">12:00 – 20:00</text>
+</svg>

@@ -1,0 +1,210 @@
+/*
+ * Northwind Supper Club — seeded fixture styles.
+ *
+ * Several rules here are deliberately wrong. Each one is tagged with the
+ * ground-truth id it backs. Do not tidy them up: `pnpm test` measures recall
+ * against exactly these.
+ */
+
+:root {
+  --ink: #1b1b1b;
+  --paper: #ffffff;
+  --brand: #7a3b2e;
+  --rule: #e3ded6;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: Georgia, 'Times New Roman', serif;
+  color: var(--ink);
+  background: var(--paper);
+  line-height: 1.6;
+}
+
+.page {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 24px 20px 80px;
+}
+
+header.site {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding-block: 20px;
+  border-bottom: 1px solid var(--rule);
+}
+
+.wordmark {
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--brand);
+}
+
+nav.site ul {
+  display: flex;
+  gap: 20px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+nav.site a {
+  color: var(--brand);
+  text-decoration: none;
+}
+
+/*
+ * SEEDED ISSUE gt-005 (WCAG 2.4.7): the focus indicator is removed globally.
+ * A keyboard user cannot tell where they are. This is the single most common
+ * real-world failure and the reason kbd.focus-visible exists.
+ */
+button:focus,
+a:focus,
+input:focus,
+select:focus,
+textarea:focus {
+  outline: none;
+}
+
+/* The trap for gt-005: this control keeps a strong, visible focus ring and
+   must NOT be reported. */
+.keeps-focus-ring:focus-visible {
+  outline: 3px solid #12507a;
+  outline-offset: 2px;
+}
+
+/*
+ * SEEDED ISSUE gt-004 (WCAG 1.4.3): #949494 on white is about 3.0:1, under the
+ * 4.5:1 required for body text.
+ */
+.muted-note {
+  color: #949494;
+  font-size: 16px;
+}
+
+/* Trap for gt-004: #767676 on white is 4.54:1 — passing, must NOT be reported. */
+.muted-note--passing {
+  color: #767676;
+  font-size: 16px;
+}
+
+/*
+ * SEEDED ISSUE gt-010 (WCAG 1.4.1): required fields are marked by red text
+ * colour alone. Remove colour vision and the information is gone.
+ */
+.required-by-colour {
+  color: #c62f2f;
+}
+
+/*
+ * SEEDED ISSUE gt-009 (WCAG 2.5.8): an 18x18 CSS-pixel hit area, under the
+ * 24x24 minimum.
+ */
+.icon-button--small {
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 1px solid var(--rule);
+  background: #fff;
+  font-size: 11px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+/* Trap for gt-009: exactly 24x24, which passes. Must NOT be reported. */
+.icon-button--ok {
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid var(--rule);
+  background: #fff;
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.card {
+  border: 1px solid var(--rule);
+  border-radius: 10px;
+  padding: 20px;
+  margin-block: 20px;
+}
+
+.field {
+  display: block;
+  margin-block: 14px;
+}
+
+.field input,
+.field select {
+  display: block;
+  width: 100%;
+  max-width: 360px;
+  padding: 10px 12px;
+  font: inherit;
+  border: 1px solid #b9b2a6;
+  border-radius: 6px;
+}
+
+.primary {
+  background: var(--brand);
+  color: #fff;
+  border: 0;
+  border-radius: 6px;
+  padding: 12px 22px;
+  font: inherit;
+  cursor: pointer;
+}
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgb(0 0 0 / 55%);
+  display: grid;
+  place-items: center;
+}
+
+.modal {
+  background: #fff;
+  border-radius: 12px;
+  padding: 28px;
+  width: min(440px, 92vw);
+}
+
+/*
+ * SEEDED ISSUE gt-007 (WCAG 1.4.10): a fixed 720px-wide table forces horizontal
+ * scrolling at the 320px reflow viewport.
+ */
+.wine-table {
+  width: 720px;
+  border-collapse: collapse;
+}
+
+.wine-table th,
+.wine-table td {
+  border-bottom: 1px solid var(--rule);
+  padding: 10px 14px;
+  text-align: left;
+}
+
+.gallery {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+}
+
+.gallery img {
+  border-radius: 10px;
+}
+
+footer.site {
+  margin-top: 48px;
+  padding-top: 20px;
+  border-top: 1px solid var(--rule);
+}

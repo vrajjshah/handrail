@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "seeded-demo",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--filter", "@handrail/fixture-seeded-demo", "dev"],
+      "port": 5178
+    }
+  ]
+}
