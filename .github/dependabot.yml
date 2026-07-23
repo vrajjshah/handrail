@@ -20,6 +20,11 @@ updates:
       # typescript-eslint caps its peer range at <6.1.0.
       - dependency-name: typescript
         versions: ['>=7']
+      # @types/node tracks the Node runtime major (see .node-version / engines).
+      # Types from a newer major describe APIs this runtime does not have, which
+      # typechecks clean and then fails at runtime.
+      - dependency-name: '@types/node'
+        update-types: [version-update:semver-major]
 
   - package-ecosystem: github-actions
     directory: /
