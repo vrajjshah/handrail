@@ -1,0 +1,29 @@
+{
+  "name": "@handrail/model",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "The provider seam every model call goes through: local-deterministic backend, cost ledger, typed errors, no silent fallback.",
+  "license": "MIT",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "publishConfig": {
+    "access": "public",
+    "main": "./dist/index.js",
+    "types": "./dist/index.d.ts",
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      }
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "dependencies": {
+    "@handrail/schemas": "workspace:*",
+    "zod": "^4.4.3"
+  }
+}

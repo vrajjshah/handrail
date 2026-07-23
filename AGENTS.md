@@ -9,12 +9,21 @@ reality.
 
 ## Current state
 
-**Phase 0 complete. Phase 1 in progress** — 3 of 12 issues done. The engine can
-now capture a page; nothing detects or reports yet.
+**Phase 0 complete. Phase 1 in progress** — 6 of 12 issues done. The engine can
+capture and detect; the model seam exists but no provider reaches a network yet.
 
 Landed:
 
-- `@handrail/engine` first four heuristics (#4-heuristics) — `kbd.walk`,
+- `@handrail/model` provider seam (#7) — the `CostLedger` *is* the seam every
+  model call goes through: it times, prices and records a schema-valid
+  `ModelInvocation` on success *and* failure, then re-throws a typed `ModelError`
+  (trust invariant 1 — no silent fallback). Ships `local-deterministic` (the $0
+  eval backbone; responders script text, structured and forced-failure outcomes),
+  a fail-loud price table with the Sonnet-5 intro window, a per-model/provider
+  capability map encoding the ADR-0004 constraints, and `degradationForModelError`
+  mapping a failure to the scan's `model-unavailable` degradation. 102 unit tests.
+  No providers yet (#8) and no cassettes (#9).
+- `@handrail/engine` first four heuristics (#6) — `kbd.walk`,
   `kbd.focus-visible`, `ptr.target-size`, `resp.reflow-320`. One keyboard traversal
   (real Tab presses) drives both kbd checks; ptr and reflow are pure over the
   element index. Full exception ladders (target-size spacing/inline, reflow 320px
@@ -49,13 +58,19 @@ Verified working: `pnpm install && pnpm test` green from a clean clone,
 
 ## Next up
 
-**Phase 1: `@handrail/model` (#6)** — the provider seam, with `local-deterministic`
-first so the eval backbone exists before anything depends on a network call. Read
-the API-shape constraints in ADR-0004 before writing it (Sonnet 5 rejects sampling
-params, no budget_tokens, adaptive thinking default, Bedrock forced-tool_choice).
+**Anthropic + Bedrock providers (#8) and record/replay cassettes (#9).** The seam
+is built, so these plug into it: #8 implements `ModelClient` for `anthropic`
+(`@anthropic-ai/sdk`, native structured outputs) and `bedrock`, reading the
+capability map already in `@handrail/model` — honour every ADR-0004 constraint
+(Sonnet 5 rejects sampling params, no `budget_tokens`, adaptive thinking default,
+Bedrock forced-`tool_choice` needs thinking disabled). **Both must register their
+models in `pricing.ts` and `capability.ts` or a successful call throws** (see
+gotchas). #9 wraps the seam with `MODEL_MODE=record|replay` — CI already sets
+`replay`.
 
-After that the text judge + verdict pipeline (#9) is the big one — it grounds AI
-candidates against the element index the capture already produces.
+The text judge + verdict pipeline (#10) is the big one — it grounds AI candidates
+against the element index the capture already produces, and it's where the
+verifier's ≤2K-prompt caching hole (ADR-0004) gets decided.
 
 **Deferred (optional, from the plan's §Engine layer A):** IBM equal-access as a
 ceiling-limited `secondOpinion`. Not built — it is marked optional, adds the heavy
@@ -163,7 +178,29 @@ comparison scorecard wants a second rule engine.
 - **Sonnet 5 rejects `temperature`/`top_p`/`top_k` at non-default values**, has no
   `budget_tokens`, and runs adaptive thinking when `thinking` is omitted. The
   provider seam must set the thinking mode explicitly rather than relying on the
-  default, since `max_tokens` caps thinking and response together.
+  default, since `max_tokens` caps thinking and response together. Consequently
+  **`ModelRequest` has no temperature knob at all** — steering is prompt-only
+  across every provider. Don't add one "just for Anthropic"; it will 400 on Sonnet.
+- **The price and capability tables fail loud, on purpose.** `computeCostUsd`
+  throws `UnknownModelPriceError` and `capabilityFor` throws
+  `UnknownModelCapabilityError` for any non-deterministic model they don't know.
+  So #8 must register each new model in **both** `pricing.ts` (`MODEL_PRICES`) and
+  `capability.ts` (`MODEL_CAPABILITIES`) — otherwise a *successful* call throws
+  after the tokens were already spent. A silent $0 would corrupt COST.md, which is
+  the one thing this table exists to prevent; the throw is the honest failure.
+- **`local-deterministic` is $0 by provider short-circuit, not by a price entry.**
+  `computeCostUsd` returns 0 for `provider === 'local-deterministic'` before any
+  table lookup, and the backend reports `model: 'local-deterministic'` regardless
+  of which role-model it stands in for. A **structured** request to it needs a
+  responder that returns `output`, or it raises `DeterministicConfigError` — a
+  test-setup bug, deliberately *not* a `ModelError`, so never map it to a
+  degradation. Output that doesn't parse *is* a `ModelError('schema-invalid')`,
+  mirroring a real provider's native-structured-output guarantee.
+- **AGENTS.md's inline issue numbers were off by one from GitHub and are now
+  fixed.** The model seam was labelled `#6` but is GitHub **#7**; the verdict
+  pipeline was `#9` but is **#10**. GitHub #6 is the (closed) heuristics issue.
+  When citing an issue number here, cross-check `gh issue view` — the phase-order
+  and GitHub numbering are not the same sequence.
 - **Zod 4: `.default()` vs `.prefault()`.** `.default()` takes the schema's *output*
   type, so `.default({})` fails on any object whose fields have their own defaults.
   Use `.prefault({})` — it feeds the value through parsing so inner defaults apply.
