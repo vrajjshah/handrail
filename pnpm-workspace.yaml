@@ -1,0 +1,8 @@
+packages:
+  - "packages/*"
+  - "apps/*"
+  - "fixtures/apps/*"
+# Postinstall scripts are opt-in. Both of these need one to place a native binary.
+allowBuilds:
+  esbuild: true
+  lefthook: true

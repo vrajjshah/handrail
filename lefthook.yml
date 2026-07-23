@@ -1,0 +1,13 @@
+# Pre-commit is the fast feedback loop, not the gate. CI is the gate.
+# Anything slow (browser runs, evals, the golden scan) belongs there, not here.
+pre-commit:
+  parallel: true
+  jobs:
+    - name: eslint
+      glob: "*.{ts,tsx,js,mjs,cjs}"
+      run: pnpm exec eslint --fix --no-warn-ignored {staged_files}
+      stage_fixed: true
+
+    - name: typecheck
+      glob: "*.{ts,tsx}"
+      run: pnpm typecheck

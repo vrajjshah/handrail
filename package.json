@@ -1,0 +1,40 @@
+{
+  "name": "handrail",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "The open-source AI accessibility engineer: evidence-first WCAG 2.2 scanning with honest coverage.",
+  "license": "MIT",
+  "author": "Vraj Shah",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/vrajjshah/handrail.git"
+  },
+  "packageManager": "pnpm@11.16.0",
+  "engines": {
+    "node": ">=22.12"
+  },
+  "scripts": {
+    "build": "tsc --build tsconfig.build.json",
+    "clean": "tsc --build --clean && tsc --build tsconfig.build.json --clean",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "typecheck": "tsc --build --force",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "prepare": "lefthook install"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^22.19.0",
+    "@vitest/coverage-v8": "^4.1.10",
+    "eslint": "^10.7.0",
+    "globals": "^17.7.0",
+    "lefthook": "^2.1.10",
+    "tsx": "^4.23.1",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.65.0",
+    "vitest": "^4.1.10"
+  }
+}
