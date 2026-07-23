@@ -182,7 +182,7 @@
       "viewports": [
         "desktop"
       ],
-      "summary": "Positive tabindex values put Contact before Menu, against the visual order.",
+      "summary": "A positive tabindex pulls Contact ahead of Menu and Cellar, against the visual order.",
       "whyItMatters": "Only walking the real tab sequence finds this. Reading the DOM in source order says the navigation is fine."
     },
     {
@@ -209,8 +209,8 @@
         "heightPx": 18,
         "threshold": 24
       },
-      "summary": "An 18x18 CSS-pixel button, under the 24x24 minimum.",
-      "whyItMatters": "A WCAG 2.2 addition, so most tooling has not caught up. The exception ladder matters here: inline targets and spacing-compensated targets are allowed, and a check that ignores that will drown users in false positives."
+      "summary": "An 18x18 button flush against a full-size one, so the spacing exception cannot rescue it.",
+      "whyItMatters": "An undersized target is only a 2.5.8 failure if it is also crowded: WCAG exempts an isolated small target whose 24px spacing circle intersects nothing. This one sits flush against a neighbouring target, so the circle intersects and the exception does not apply. The full-size neighbour passes on size. A size-only check is wrong both ways — it would miss the spacing nuance and flag every isolated small target — which is the false-positive trap the exception ladder exists to avoid."
     },
     {
       "id": "gt-010",
@@ -374,6 +374,20 @@
       ],
       "summary": "Keeps a strong focus ring via :focus-visible despite the global outline reset.",
       "whyItMatters": "The focus-visible check has to resolve the real cascade for this element, not just grep the stylesheet for `outline: none`."
+    },
+    {
+      "id": "trap-target-size-spacing",
+      "selector": "[data-trap=\"trap-target-size-spacing\"]",
+      "mustNotBeFlaggedFor": [
+        "2.5.8"
+      ],
+      "measured": {
+        "widthPx": 18,
+        "heightPx": 18,
+        "threshold": 24
+      },
+      "summary": "An 18x18 button that is isolated, so the spacing exception passes it.",
+      "whyItMatters": "The check that motivated the whole exception ladder. This target is under 24px, but the nearest other target is far more than 24px away, so its 24px spacing circle intersects nothing and WCAG 2.5.8 passes it. axe passes it too. Flagging it is a false positive."
     }
   ]
 }

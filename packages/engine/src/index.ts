@@ -15,3 +15,13 @@ export * from './detect/types.js';
 export * from './detect/axe-detect.js';
 export * from './detect/axe-runner.js';
 export type { AxeResult, AxeResultGroup, AxeNode, AxeImpact } from './detect/axe-types.js';
+
+export * from './detect/heuristics/types.js';
+export * from './detect/heuristics/run-heuristics.js';
+export * from './detect/heuristics/ptr-target-size.js';
+export * from './detect/heuristics/resp-reflow.js';
+export * from './detect/heuristics/kbd-focus-order.js';
+export * from './detect/heuristics/kbd-focus-visible.js';
+export * from './detect/heuristics/keyboard-traversal.js';
+export { buildHeuristicFinding } from './detect/heuristics/finding-builder.js';
+export type { FocusStyle, ActiveElementInfo } from './detect/heuristics/read-active-element.browser.js';
