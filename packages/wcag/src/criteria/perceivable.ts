@@ -25,7 +25,8 @@ export const PERCEIVABLE = [
     testability: 'machine-assisted',
     detectionCoverage: [
       { checkId: 'axe.image-alt', class: 'detects-failures' },
-      { checkId: 'axe.button-name', class: 'detects-failures' },
+      { checkId: 'axe.svg-img-alt', class: 'detects-failures' },
+      { checkId: 'axe.object-alt', class: 'detects-failures' },
       { checkId: 'ai.alt-vs-image', class: 'surfaces-candidates' },
     ],
     manualProcedure:
@@ -179,9 +180,10 @@ export const PERCEIVABLE = [
     ],
     testability: 'machine-assisted',
     detectionCoverage: [
-      { checkId: 'axe.label', class: 'detects-failures' },
-      { checkId: 'axe.table-headers', class: 'detects-failures' },
-      { checkId: 'axe.list-structure', class: 'detects-failures' },
+      { checkId: 'axe.list', class: 'detects-failures' },
+      { checkId: 'axe.listitem', class: 'detects-failures' },
+      { checkId: 'axe.td-has-header', class: 'detects-failures' },
+      { checkId: 'axe.th-has-data-cells', class: 'detects-failures' },
       { checkId: 'ai.heading-outline', class: 'surfaces-candidates' },
       { checkId: 'ai.visual-structure', class: 'surfaces-candidates' },
     ],

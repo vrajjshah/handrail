@@ -4,9 +4,21 @@
     "rootDir": "./src",
     "outDir": "./dist",
     "tsBuildInfoFile": "./dist/.tsbuildinfo",
-    "types": ["node"]
+    "types": [
+      "node"
+    ]
   },
-  "include": ["src/**/*.ts"],
-  "exclude": ["src/**/*.test.ts", "src/__test__/**"],
-  "references": [{ "path": "../schemas/tsconfig.build.json" }]
+  "include": [
+    "src/**/*.ts"
+  ],
+  "exclude": [
+    "src/**/*.test.ts",
+    "src/__test__/**",
+    "src/scripts/**"
+  ],
+  "references": [
+    {
+      "path": "../schemas/tsconfig.build.json"
+    }
+  ]
 }

@@ -223,7 +223,8 @@ export const UNDERSTANDABLE = [
     ],
     testability: 'machine-assisted',
     detectionCoverage: [
-      { checkId: 'axe.label', class: 'detects-failures' },
+      { checkId: 'axe.label', class: 'detects-failures', attribution: 'handrail' },
+      { checkId: 'axe.form-field-multiple-labels', class: 'detects-failures' },
       { checkId: 'ai.label-quality', class: 'surfaces-candidates' },
     ],
     manualProcedure:

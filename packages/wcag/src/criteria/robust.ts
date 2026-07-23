@@ -32,9 +32,11 @@ export const ROBUST = [
     ],
     testability: 'machine-assisted',
     detectionCoverage: [
-      { checkId: 'axe.aria-valid', class: 'detects-failures' },
-      { checkId: 'axe.button-name', class: 'detects-failures' },
+      { checkId: 'axe.aria-valid-attr', class: 'detects-failures' },
+      { checkId: 'axe.aria-valid-attr-value', class: 'detects-failures' },
       { checkId: 'axe.aria-required-attr', class: 'detects-failures' },
+      { checkId: 'axe.button-name', class: 'detects-failures' },
+      { checkId: 'axe.link-name', class: 'detects-failures' },
       { checkId: 'ai.custom-widget-semantics', class: 'surfaces-candidates' },
     ],
     manualProcedure:
