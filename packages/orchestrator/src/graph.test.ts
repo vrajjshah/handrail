@@ -11,6 +11,7 @@ import {
 import { CostLedger, createDeterministicClient } from '@handrail/model';
 import {
   FindingSchema,
+  ReportSchema,
   ScanEventSchema,
   ScanOptionsSchema,
   ScanTargetSchema,
@@ -55,8 +56,15 @@ const axeFinding = () =>
     description: 'Image has no text alternative.',
   });
 
+interface ReplayOptions {
+  passes?: AxeDetectionResult['passes'];
+  outcomes?: HeuristicResult['outcomes'];
+}
+
 /** Replays the committed capture. A drop-in for the Playwright driver. */
-function replayDriver(): ScanDriver & { released: string[]; disposed: boolean } {
+function replayDriver(
+  options: ReplayOptions = {},
+): ScanDriver & { released: string[]; disposed: boolean } {
   const released: string[] = [];
   return {
     released,
@@ -67,13 +75,13 @@ function replayDriver(): ScanDriver & { released: string[]; disposed: boolean } 
     axe(): Promise<AxeDetectionResult> {
       return Promise.resolve({
         findings: [axeFinding()],
-        passes: [],
+        passes: options.passes ?? [],
         degradations: [],
         axeVersion: '4.12.1',
       });
     },
     heuristics(): Promise<HeuristicResult> {
-      return Promise.resolve({ outcomes: [], degradations: [] });
+      return Promise.resolve({ outcomes: options.outcomes ?? [], degradations: [] });
     },
     release(released_: StateCapture): Promise<void> {
       released.push(String(released_.pageStateId));
@@ -178,6 +186,64 @@ describe('the scan graph', () => {
     // Still one page discovered — the matrix multiplies states, not pages.
     expect(result.record.counts.pagesCaptured).toBe(1);
     expect(driver.released).toHaveLength(2);
+  });
+});
+
+describe('the score and report nodes', () => {
+  it('returns a schema-valid report covering every criterion in the target level', async () => {
+    const result = await runScan(scanInput(), { driver: replayDriver() });
+
+    expect(() => ReportSchema.parse(result.report)).not.toThrow();
+    expect(result.report.scRollups).toHaveLength(55);
+    expect(result.report.coverage.criteriaTotal).toBe(55);
+    expect(result.report.scan.id).toEqual(result.record.id);
+    // The axe finding in the replay driver is a 1.1.1 violation.
+    expect(result.report.scRollups.find((r) => String(r.sc) === '1.1.1')?.status).toBe('fail');
+  });
+
+  it('emits the honest headline as a log event rather than a score out of 100', async () => {
+    const result = await runScan(scanInput(), { driver: replayDriver() });
+    const headline = result.events.find(
+      (e) => e.type === 'log' && e.message.startsWith('Automatically evaluated'),
+    );
+    expect(headline).toBeDefined();
+    expect(result.events.every((e) => e.type !== 'log' || !e.message.includes('out of 100'))).toBe(
+      true,
+    );
+  });
+
+  it('turns a decides-class heuristic that examined candidates into an evidenced pass', async () => {
+    const result = await runScan(scanInput(), {
+      driver: replayDriver({
+        outcomes: [
+          { checkId: 'resp.reflow-320', sc: ['1.4.10'], findings: [], candidatesChecked: 7 },
+        ],
+      }),
+    });
+    const rollup = result.report.scRollups.find((r) => String(r.sc) === '1.4.10');
+    expect(rollup?.status).toBe('pass');
+    expect(rollup?.rationale).toContain('7 candidate(s)');
+  });
+
+  it('does not let a clean axe rule masquerade as a pass', async () => {
+    const result = await runScan(scanInput(), {
+      driver: replayDriver({
+        passes: [{ ruleId: 'image-alt', checkId: 'axe.image-alt', sc: ['1.1.1'], nodeCount: 4 }],
+      }),
+    });
+    // 1.1.1 still fails here (the driver also reports a violation), so check a
+    // criterion where axe ran clean and nothing else contributed.
+    const result2 = await runScan(scanInput(), {
+      driver: replayDriver({
+        passes: [
+          { ruleId: 'html-has-lang', checkId: 'axe.document-title', sc: ['2.4.2'], nodeCount: 1 },
+        ],
+      }),
+    });
+    expect(result.report.scRollups.find((r) => String(r.sc) === '1.1.1')?.status).toBe('fail');
+    const rollup = result2.report.scRollups.find((r) => String(r.sc) === '2.4.2');
+    expect(rollup?.status).toBe('not-tested');
+    expect(rollup?.checksRun).toContain('axe.document-title');
   });
 });
 

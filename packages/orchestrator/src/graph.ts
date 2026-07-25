@@ -1,15 +1,24 @@
 import {
   allFindings,
   buildHallucinationLedger,
+  buildReportFromScore,
+  buildScoreSummary,
+  checkRunFromAxePass,
+  checkRunFromHeuristic,
+  deriveApplicabilitySignals,
   runTextJudgment,
   writeHallucinationLedger,
+  type CheckRunSummary,
   type HallucinationEntry,
+  type ScoreSummary,
   type StateCapture,
 } from '@handrail/engine';
 import { ModelError, type CostLedger, type ModelClient } from '@handrail/model';
 import {
+  coverageHeadline,
   type Degradation,
   type Finding,
+  type Report,
   type ScanEvent,
   type ScanPhase,
   type ScanRecord,
@@ -156,6 +165,7 @@ export function createScanGraph(
   const detect = phase('detect', async (state) => {
     const findings: Finding[] = [];
     const degradations: Degradation[] = [];
+    const checkRuns: CheckRunSummary[] = [];
     for (const captured of state.captures) {
       try {
         const axe = await deps.driver.axe(captured);
@@ -164,13 +174,22 @@ export function createScanGraph(
           findings.push(finding);
           emitter.emit({ type: 'finding.detected', finding });
         }
+        // Not findings — the raw material for an evidenced `pass`. A rule that
+        // ran clean and a rule that had nothing to examine look identical once
+        // you throw the candidate count away, so it is kept.
+        checkRuns.push(...axe.passes.map(checkRunFromAxePass));
+        checkRuns.push(...heuristics.outcomes.map(checkRunFromHeuristic));
       } finally {
         // axe runs *in* the page and the keyboard walk presses real Tab keys, so
         // the page stays open until both are done with it — then always closes.
         await deps.driver.release(captured);
       }
     }
-    return { findings: [...state.findings, ...findings], degradations: [...state.degradations, ...degradations] };
+    return {
+      findings: [...state.findings, ...findings],
+      degradations: [...state.degradations, ...degradations],
+      checkRuns: [...state.checkRuns, ...checkRuns],
+    };
   });
 
   const judgeText = phase('judge-text', async (state) => {
@@ -282,22 +301,33 @@ export function createScanGraph(
   });
 
   const score = phase('score', (state) => {
+    // The rollup, not a number: every criterion in the target level gets one
+    // outcome, `not-tested` included. Applicability signals come from the
+    // captures, so a criterion is only excused when something actually looked.
+    const summary = buildScoreSummary({
+      findings: state.findings,
+      checkRuns: state.checkRuns,
+      aiChecksRun: state.checksRun,
+      signals: deriveApplicabilitySignals(state.captures, state.urls.length),
+      level: state.options.wcagTarget.level,
+    });
+
     emitter.emit({
       type: 'log',
       level: 'info',
-      message:
-        `${String(state.findings.length)} finding(s) across ` +
-        `${String(state.captures.length)} state(s); ${String(state.checksRun.length)} AI check(s) ran`,
+      message: coverageHeadline(summary.coverage),
       phase: 'score',
     });
-    return Promise.resolve({});
+    return Promise.resolve({ scoreSummary: summary });
   });
 
   const report = phase('report', (state) => {
     emitter.emit({
       type: 'log',
       level: 'info',
-      message: 'report assembled',
+      message:
+        `report assembled: ${String(state.findings.length)} finding(s) across ` +
+        `${String(state.captures.length)} captured state(s)`,
       phase: 'report',
     });
     return Promise.resolve({ findings: state.findings });
@@ -335,10 +365,18 @@ export interface RunScanInput {
   options: ScanState['options'];
   /** Clock seam, so a golden-scan run is reproducible. */
   now?: () => Date;
+  /** Recorded in the report so an artifact can be traced to the code that made it. */
+  toolVersion?: string;
 }
 
 export interface ScanRunResult {
   record: ScanRecord;
+  /**
+   * The canonical artifact. `report.html`, SARIF and the PR summary are all
+   * rendered from this one object, so no surface can compute a friendlier
+   * number of its own.
+   */
+  report: Report;
   events: ScanEvent[];
   findings: Finding[];
   rejected: HallucinationEntry[];
@@ -435,7 +473,26 @@ export async function* streamScan(
     finishedAt: now().toISOString(),
   });
 
-  return { record, events: emitted, findings, rejected: final?.rejected ?? [] };
+  // The score node did the scoring; the record could only be finished here,
+  // once the cost and the clock were final. Falling back to a fresh summary
+  // keeps a graph that failed before `score` from producing no report at all —
+  // an empty report that says "0 of 55 evaluated" is the honest artifact for
+  // that case, and a missing one is not.
+  const summary: ScoreSummary =
+    final?.scoreSummary ??
+    buildScoreSummary({ findings, level: input.options.wcagTarget.level });
+
+  const report = buildReportFromScore(
+    {
+      scan: record,
+      findings,
+      toolVersion: input.toolVersion ?? '0.0.0',
+      generatedAt: now(),
+    },
+    summary,
+  );
+
+  return { record, report, events: emitted, findings, rejected: final?.rejected ?? [] };
 }
 
 /** Collecting wrapper for callers that just want the result. */
