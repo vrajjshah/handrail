@@ -44,6 +44,8 @@ export * from './verdict/ai-finding.js';
 export * from './verdict/hallucination-ledger.js';
 export * from './verdict/pipeline.js';
 
+export * from './report/index.js';
+
 export * from './detect/heuristics/types.js';
 export * from './detect/heuristics/run-heuristics.js';
 export * from './detect/heuristics/ptr-target-size.js';
