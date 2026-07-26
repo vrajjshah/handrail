@@ -68,6 +68,18 @@ export function registerScanRoutes(app: FastifyInstance, deps: ServerDeps): Prom
         ...(request.ip === undefined ? {} : { clientIp: request.ip }),
       });
 
+      // Enqueued after the row exists, never before: a worker that picked the
+      // job up first would look up a scan that had not been written yet. The
+      // row is the fact; the job is a notification about it.
+      if (deps.queue === undefined) {
+        request.log.warn(
+          { scanId: scan.id },
+          'no queue configured — this scan will stay queued and never run',
+        );
+      } else {
+        await deps.queue.publish({ scanId: scan.id });
+      }
+
       const base = `/api/scans/${scan.id}`;
       return reply.status(202).send({
         scan,

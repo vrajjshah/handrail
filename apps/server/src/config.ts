@@ -20,6 +20,24 @@ export const ConfigSchema = z.object({
   PUBLIC_URL: z.url().default('http://localhost:8080'),
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).default('info'),
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
+
+  /**
+   * Postgres. Optional, and the absence is not a silent downgrade: without it
+   * the server holds scans in memory, says so at boot, and `/readyz` reports
+   * that it has no database. A hosted deployment sets it.
+   */
+  DATABASE_URL: z.string().min(1).optional(),
+
+  /**
+   * How long a worker may hold a scan job before the queue assumes it died.
+   *
+   * Must exceed the longest scan the budget permits (10 minutes), or a slow
+   * scan is handed to a second worker while the first is still running it.
+   */
+  JOB_EXPIRE_SECONDS: z.coerce.number().int().positive().default(900),
+
+  /** pg-boss concurrency. 1–2: the constraint is a real browser, not throughput. */
+  WORKER_CONCURRENCY: z.coerce.number().int().min(1).max(2).default(1),
 });
 
 export type Config = z.infer<typeof ConfigSchema>;
@@ -49,4 +67,20 @@ export function servesHttp(config: Config): boolean {
 /** True when this process should run scans. */
 export function runsScans(config: Config): boolean {
   return config.SERVICE_ROLE !== 'api';
+}
+
+/**
+ * A worker with no database has nowhere to take jobs from.
+ *
+ * Checked at boot rather than discovered at the first job, because a container
+ * that starts cleanly and then quietly does nothing is the worst of the
+ * available failures.
+ */
+export function assertRunnable(config: Config): void {
+  if (runsScans(config) && config.DATABASE_URL === undefined && config.SERVICE_ROLE === 'worker') {
+    throw new ConfigError(
+      'SERVICE_ROLE=worker needs DATABASE_URL: the job queue lives in Postgres, ' +
+        'so a worker without one has no queue to consume.',
+    );
+  }
 }

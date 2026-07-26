@@ -123,6 +123,50 @@ jobs:
       - run: pnpm --filter @handrail/fixture-seeded-demo build
       - run: pnpm test:browser
 
+  # The durable half: the Drizzle schema, the Postgres store, the pg-boss queue,
+  # and #18's acceptance — a scan surviving a worker restart mid-run. Ubuntu-only
+  # and separate for the same reason the browser job is: the three-OS `unit`
+  # matrix earns its keep by needing nothing but Node.
+  postgres:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: handrail
+          POSTGRES_PASSWORD: handrail
+          POSTGRES_DB: handrail
+        ports: ['5432:5432']
+        # Without this the job races the database's own startup, and the
+        # failure looks like a connection bug rather than a timing one.
+        options: >-
+          --health-cmd "pg_isready -U handrail"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://handrail:handrail@localhost:5432/handrail
+    steps:
+      - uses: actions/checkout@v7
+      - run: corepack enable
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      # Migrations are an explicit pre-start step in production, so they are an
+      # explicit step here too. A CI job that migrated implicitly would not be
+      # testing the thing that actually runs.
+      - run: pnpm --filter @handrail/server db:migrate
+
+      # The committed migrations must describe the schema. `drizzle-kit check`
+      # fails when the schema has drifted from what the SQL files produce, which
+      # is how a hand-edited migration or a forgotten `db:generate` is caught.
+      - run: pnpm --filter @handrail/server exec drizzle-kit check
+
+      - run: pnpm test:pg
+
   # A full deterministic scan of the seeded-demo, normalised and diffed against a
   # committed snapshot. This is the only check that sees the whole pipeline at
   # once, so it catches what unit tests structurally cannot: a node running out

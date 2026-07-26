@@ -9,6 +9,13 @@
  */
 export * from './config.js';
 export * from './app.js';
+export * from './composition.js';
+export * from './db/client.js';
+export * from './db/schema.js';
+export * from './store/postgres.js';
+export * from './store/rows.js';
+export * from './worker/queue.js';
+export * from './worker/run-scan-job.js';
 export * from './http/problem.js';
 export * from './http/schemas.js';
 export * from './store/types.js';

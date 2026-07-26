@@ -1,5 +1,6 @@
 import type {
   ArtifactId,
+  Finding,
   Report,
   ScanEvent,
   ScanId,
@@ -62,6 +63,21 @@ export interface ScanStore {
   appendEvents(id: ScanId, events: readonly ScanEvent[]): Promise<void>;
   /** Events with `seq > afterSeq`, ascending. `afterSeq: -1` returns all of them. */
   eventsSince(id: ScanId, afterSeq: number): Promise<ScanEvent[]>;
+  /**
+   * The highest `seq` written, or -1 when there are none.
+   *
+   * A resumed scan continues the sequence from here. Starting again at 0 would
+   * mint a second event 4 for one scan, and `seq` is the SSE event id.
+   */
+  lastSeq(id: ScanId): Promise<number>;
+
+  /**
+   * Persist findings as they stream, before any report exists.
+   *
+   * Ids are content-derived, so re-saving one after a resume is expected and
+   * must be harmless.
+   */
+  saveFindings(id: ScanId, findings: readonly Finding[]): Promise<void>;
 }
 
 /**

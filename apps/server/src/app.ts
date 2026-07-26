@@ -15,6 +15,7 @@ import { registerMetaRoutes } from './routes/meta.js';
 import { registerReportRoutes } from './routes/reports.js';
 import { registerScanRoutes } from './routes/scans.js';
 import type { ArtifactReader, ScanStore } from './store/types.js';
+import type { ScanQueue } from './worker/queue.js';
 
 export interface ServerDeps {
   config: Config;
@@ -22,6 +23,15 @@ export interface ServerDeps {
   artifacts: ArtifactReader;
   /** Handrail's own version, reported by `/api/meta` and stamped into reports. */
   toolVersion: string;
+  /**
+   * Where a submitted scan goes.
+   *
+   * Optional, and its absence is visible rather than silent: without a queue
+   * the scan stays `queued` forever and `/readyz` says the queue is missing. A
+   * server that accepted work it could not do and looked healthy doing it would
+   * be the worst of the options.
+   */
+  queue?: ScanQueue;
 }
 
 /**
