@@ -1,0 +1,19 @@
+# Line endings are LF in the index *and* in the working tree, on every platform.
+#
+# Not a style preference. `packages/tokens/theme.css` and the generated sections
+# of `docs/DESIGN.md` are compared byte-for-byte against what the generator
+# emits, and the committed golden snapshots are diffed as text. Without this,
+# a Windows checkout rewrites every file to CRLF and those checks fail on
+# content that is identical — which is exactly how the Windows `unit` job went
+# red the first time a generated artifact was committed.
+* text=auto eol=lf
+
+# Binary artifacts must never be touched by that normalisation.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.woff binary
+*.woff2 binary
+*.pdf binary

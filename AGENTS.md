@@ -237,6 +237,13 @@ comparison scorecard wants a second rule engine.
   against every button fill. Switching to `box-shadow` would also break
   forced-colors mode, where a focus indicator matters most; `css.test.ts`
   asserts the string `box-shadow` never appears.
+- **A byte-exact comparison against a committed text file fails on Windows
+  without `.gitattributes`.** The Windows runner checks out CRLF, so
+  `readFile(theme.css) === renderThemeCss()` compares identical content and
+  reports a mismatch. The repo now pins `* text=auto eol=lf`, which is the fix —
+  normalising `\r\n` away inside the test instead would let a genuinely
+  CRLF-committed file pass and then churn on the next `tokens:build`. This cost
+  one red Windows job; every future generated artifact inherits the fix.
 - **`theme.css` and three sections of `docs/DESIGN.md` are generated.**
   `pnpm --filter @handrail/tokens tokens:build` regenerates both;
   `generated.test.ts` fails when either has drifted. Per the "a test that imports
