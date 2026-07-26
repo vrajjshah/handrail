@@ -21,6 +21,9 @@
       "path": "./packages/orchestrator"
     },
     {
+      "path": "./apps/server"
+    },
+    {
       "path": "./apps/cli"
     },
     {

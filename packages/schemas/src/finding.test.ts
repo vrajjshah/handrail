@@ -157,7 +157,10 @@ describe('source', () => {
   });
 
   it('rejects an unknown source', () => {
-    expect(() => FindingSchema.parse(makeFinding({ source: 'vibes' }))).toThrow();
+    // Cast, because the source list is a codec whose *input* type is now the
+    // real union — TypeScript rejects this before Zod gets the chance, which is
+    // the improvement. The runtime guard still has to hold for untyped input.
+    expect(() => FindingSchema.parse(makeFinding({ source: 'vibes' as never }))).toThrow();
   });
 
   it('rejects an empty source list', () => {

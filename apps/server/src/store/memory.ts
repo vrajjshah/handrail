@@ -1,0 +1,146 @@
+import { randomUUID } from 'node:crypto';
+
+import {
+  ScanRecordSchema,
+  scanId as toScanId,
+  type ArtifactId,
+  type Report,
+  type ScanEvent,
+  type ScanId,
+  type ScanRecord,
+} from '@handrail/schemas';
+
+import { durationMsOf, p50, p95 } from './stats.js';
+import {
+  ArtifactNotFoundError,
+  type ArtifactReader,
+  type CreateScanInput,
+  type ScanStats,
+  type ScanStore,
+  type StoredScan,
+} from './types.js';
+
+interface Entry {
+  record: ScanRecord;
+  report?: Report;
+  events: ScanEvent[];
+  clientIp?: string;
+}
+
+/**
+ * An in-memory {@link ScanStore}.
+ *
+ * Not a stub: it is the real implementation for local development, for the test
+ * suite, and for anyone running the server without a database. #18 adds the
+ * Postgres one beside it, and this stays as the thing every route test runs
+ * against — an API test that needs a database to assert a 404 is a slow test
+ * about the wrong subject.
+ *
+ * What it cannot do is survive a restart, which is exactly the property #18's
+ * acceptance criterion is about.
+ */
+export class MemoryScanStore implements ScanStore {
+  private readonly scans = new Map<string, Entry>();
+  private readonly now: () => Date;
+  private readonly newId: () => string;
+
+  constructor(options: { now?: () => Date; newId?: () => string } = {}) {
+    this.now = options.now ?? (() => new Date());
+    this.newId = options.newId ?? (() => `scan_${randomUUID()}`);
+  }
+
+  create(input: CreateScanInput): Promise<ScanRecord> {
+    const record = ScanRecordSchema.parse({
+      id: toScanId(this.newId()),
+      target: input.target,
+      options: input.options,
+      status: 'queued',
+      phase: 'queued',
+      createdAt: this.now().toISOString(),
+    });
+    this.scans.set(record.id, {
+      record,
+      events: [],
+      ...(input.clientIp === undefined ? {} : { clientIp: input.clientIp }),
+    });
+    return Promise.resolve(record);
+  }
+
+  get(id: ScanId): Promise<StoredScan | undefined> {
+    const entry = this.scans.get(id);
+    if (entry === undefined) return Promise.resolve(undefined);
+    return Promise.resolve({
+      record: entry.record,
+      ...(entry.report === undefined ? {} : { report: entry.report }),
+    });
+  }
+
+  update(id: ScanId, patch: Partial<ScanRecord>): Promise<ScanRecord | undefined> {
+    const entry = this.scans.get(id);
+    if (entry === undefined) return Promise.resolve(undefined);
+
+    // Re-parsed rather than merged blind: a patch that would produce an invalid
+    // record fails here, at the caller, rather than later in a serializer where
+    // it looks like a rendering bug. Rejected rather than thrown, so a
+    // promise-returning method never surprises a caller with a synchronous
+    // throw — the store's Postgres sibling will only ever be able to reject.
+    const parsed = ScanRecordSchema.safeParse({ ...entry.record, ...patch });
+    if (!parsed.success) return Promise.reject(parsed.error);
+
+    entry.record = parsed.data;
+    return Promise.resolve(entry.record);
+  }
+
+  saveReport(id: ScanId, report: Report): Promise<void> {
+    const entry = this.scans.get(id);
+    if (entry === undefined) return Promise.resolve();
+    entry.report = report;
+    return Promise.resolve();
+  }
+
+  appendEvents(id: ScanId, events: readonly ScanEvent[]): Promise<void> {
+    const entry = this.scans.get(id);
+    if (entry === undefined) return Promise.resolve();
+    entry.events.push(...events);
+    return Promise.resolve();
+  }
+
+  eventsSince(id: ScanId, afterSeq: number): Promise<ScanEvent[]> {
+    const entry = this.scans.get(id);
+    if (entry === undefined) return Promise.resolve([]);
+    return Promise.resolve(entry.events.filter((event) => event.seq > afterSeq));
+  }
+
+  stats(): Promise<ScanStats> {
+    const entries = [...this.scans.values()];
+    const durations = entries
+      .map((entry) => durationMsOf(entry.record))
+      .filter((value): value is number => value !== null);
+
+    return Promise.resolve({
+      total: entries.length,
+      completed: entries.filter((entry) => entry.record.status === 'completed').length,
+      failed: entries.filter((entry) => entry.record.status === 'failed').length,
+      running: entries.filter((entry) => entry.record.status === 'running').length,
+      durationMs: { p50: p50(durations), p95: p95(durations) },
+      findingsTotal: entries.reduce((sum, entry) => sum + entry.record.counts.findingsTotal, 0),
+      costUsdTotal:
+        Math.round(entries.reduce((sum, entry) => sum + entry.record.costUsd, 0) * 1e6) / 1e6,
+    });
+  }
+}
+
+/** An in-memory {@link ArtifactReader}, for tests and for `--no-artifacts` runs. */
+export class MemoryArtifactReader implements ArtifactReader {
+  private readonly items = new Map<string, Buffer>();
+
+  put(id: ArtifactId, bytes: Buffer): void {
+    this.items.set(id, bytes);
+  }
+
+  get(id: ArtifactId): Promise<Buffer> {
+    const bytes = this.items.get(id);
+    if (bytes === undefined) return Promise.reject(new ArtifactNotFoundError(id));
+    return Promise.resolve(bytes);
+  }
+}

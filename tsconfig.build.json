@@ -21,6 +21,9 @@
       "path": "./packages/orchestrator/tsconfig.build.json"
     },
     {
+      "path": "./apps/server/tsconfig.build.json"
+    },
+    {
       "path": "./apps/cli/tsconfig.build.json"
     }
   ]

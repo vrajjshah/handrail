@@ -1,6 +1,12 @@
 import { z } from 'zod';
 
-import { CostUsdSchema, type Viewport, ViewportSchema, WcagLevelSchema } from './primitives.js';
+import {
+  CostUsdSchema,
+  type Viewport,
+  type ViewportLabel,
+  ViewportSchema,
+  WcagLevelSchema,
+} from './primitives.js';
 
 /**
  * Authentication for scanning pages behind a login.
@@ -59,6 +65,28 @@ export const ScanBudgetSchema = z.object({
   maxModelTokens: z.int().positive().default(2_000_000),
 });
 export type ScanBudget = z.infer<typeof ScanBudgetSchema>;
+
+/**
+ * The viewport matrix, by label.
+ *
+ * `desktop` runs full, `mobile` is a real phone box rather than a narrow
+ * desktop (the device scale factor matters — a screenshot at 1× is not what the
+ * user sees), and `reflow-320` is the width 1.4.10 names.
+ *
+ * It lives in the contracts because every surface resolves a label the same
+ * way: a CLI flag, an API request body and a config file that disagreed about
+ * what `mobile` means would produce three different scans of one page.
+ */
+export const VIEWPORT_PRESETS: Partial<Record<ViewportLabel, Viewport>> = {
+  desktop: { label: 'desktop', width: 1440, height: 900, deviceScaleFactor: 1 },
+  mobile: { label: 'mobile', width: 390, height: 844, deviceScaleFactor: 2 },
+  'reflow-320': { label: 'reflow-320', width: 320, height: 800, deviceScaleFactor: 1 },
+};
+
+/** The preset for a label, or `undefined` for the labels no preset exists for yet. */
+export function viewportPreset(label: ViewportLabel): Viewport | undefined {
+  return VIEWPORT_PRESETS[label];
+}
 
 const DEFAULT_VIEWPORTS: Viewport[] = [
   { label: 'desktop', width: 1440, height: 900, deviceScaleFactor: 1 },
