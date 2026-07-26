@@ -53,18 +53,32 @@ describe('.env.example', () => {
     // The contract, enforced. A variable the schema knows about and the example
     // does not is exactly how a deploy comes to depend on something nobody has
     // written down.
+    //
+    // A *commented* assignment counts as documented. That is how a secret is
+    // written down without shipping a value for it — an `ADMIN_TOKEN` with a
+    // default in the example file is a published credential.
     const text = await readFile(ENV_EXAMPLE, 'utf8');
     const documented = new Set(
       text
         .split('\n')
-        .map((line) => line.trim())
-        .filter((line) => line.length > 0 && !line.startsWith('#'))
+        .map((line) => line.trim().replace(/^#\s*/, ''))
+        .filter((line) => line.includes('='))
         .map((line) => line.split('=')[0]?.trim() ?? ''),
     );
 
     for (const key of Object.keys(ConfigSchema.shape)) {
       expect(documented, `.env.example is missing ${key}`).toContain(key);
     }
+  });
+
+  it('ships no value for the admin token', async () => {
+    // Documented, deliberately unset. A default admin token is a published one.
+    const text = await readFile(ENV_EXAMPLE, 'utf8');
+    const active = text
+      .split('\n')
+      .map((line) => line.trim())
+      .filter((line) => !line.startsWith('#'));
+    expect(active.some((line) => line.startsWith('ADMIN_TOKEN='))).toBe(false);
   });
 
   it('is itself a valid environment', async () => {

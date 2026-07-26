@@ -9,7 +9,7 @@ import {
   type ScanId,
   type ScanRecord,
 } from '@handrail/schemas';
-import { and, asc, count, eq, gt, sql } from 'drizzle-orm';
+import { and, asc, count, eq, gt, gte, sql } from 'drizzle-orm';
 
 import type { Database } from '../db/client.js';
 import type { ScanEventBus } from '../events/bus.js';
@@ -134,6 +134,22 @@ export class PostgresScanStore implements ScanStore {
       // Finding ids are content-derived, so the same finding seen twice is the
       // same row. On a resumed scan that is expected, not an error.
       .onConflictDoNothing({ target: findingsTable.id });
+  }
+
+  async recentScanTimesForIp(clientIp: string, since: Date): Promise<Date[]> {
+    const rows = await this.db
+      .select({ createdAt: scans.createdAt })
+      .from(scans)
+      .where(and(eq(scans.clientIp, clientIp), gte(scans.createdAt, since)));
+    return rows.map((row) => row.createdAt);
+  }
+
+  async countRunning(): Promise<number> {
+    const [row] = await this.db
+      .select({ running: count() })
+      .from(scans)
+      .where(eq(scans.status, 'running'));
+    return row?.running ?? 0;
   }
 
   async stats(): Promise<ScanStats> {

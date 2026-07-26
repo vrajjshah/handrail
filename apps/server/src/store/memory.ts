@@ -135,6 +135,20 @@ export class MemoryScanStore implements ScanStore {
     return Promise.resolve();
   }
 
+  recentScanTimesForIp(clientIp: string, since: Date): Promise<Date[]> {
+    const times = [...this.scans.values()]
+      .filter((entry) => entry.clientIp === clientIp)
+      .map((entry) => new Date(entry.record.createdAt))
+      .filter((at) => at >= since);
+    return Promise.resolve(times);
+  }
+
+  countRunning(): Promise<number> {
+    return Promise.resolve(
+      [...this.scans.values()].filter((entry) => entry.record.status === 'running').length,
+    );
+  }
+
   stats(): Promise<ScanStats> {
     const entries = [...this.scans.values()];
     const durations = entries

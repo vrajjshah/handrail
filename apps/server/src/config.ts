@@ -38,6 +38,15 @@ export const ConfigSchema = z.object({
 
   /** pg-boss concurrency. 1–2: the constraint is a real browser, not throughput. */
   WORKER_CONCURRENCY: z.coerce.number().int().min(1).max(2).default(1),
+
+  /**
+   * Bypasses the rate limits, for the demo and for debugging a report.
+   *
+   * Optional and unset by default: an admin token with a default value is a
+   * published credential. A short one is worse than none, so the minimum is
+   * long enough that guessing is not the attack.
+   */
+  ADMIN_TOKEN: z.string().min(32).optional(),
 });
 
 export type Config = z.infer<typeof ConfigSchema>;

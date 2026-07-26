@@ -14,9 +14,10 @@ import { registerArtifactRoutes } from './routes/artifacts.js';
 import { registerEventRoutes } from './routes/events.js';
 import { registerMetaRoutes } from './routes/meta.js';
 import { registerReportRoutes } from './routes/reports.js';
-import { registerScanRoutes } from './routes/scans.js';
+import { RateLimitedError, registerScanRoutes } from './routes/scans.js';
 import type { ArtifactReader, ScanStore } from './store/types.js';
 import type { ScanEventBus } from './events/bus.js';
+import type { GuardOptions } from './security/ssrf.js';
 import type { ScanQueue } from './worker/queue.js';
 
 export interface ServerDeps {
@@ -40,6 +41,11 @@ export interface ServerDeps {
    * than milliseconds.
    */
   eventBus?: ScanEventBus;
+  /**
+   * Seams for the SSRF guard's resolver and redirect follower, so the abuse
+   * tests can probe `127.0.0.1` and a redirect chain without a network.
+   */
+  ssrf?: GuardOptions;
 }
 
 /**
@@ -94,6 +100,12 @@ export async function buildServer(deps: ServerDeps): Promise<FastifyInstance> {
     const correlationId = correlationIdOf(request.params);
 
     if (error instanceof HttpError) {
+      // A rate limit is a wait, not a failure, and `Retry-After` is how a
+      // client is told how long — in a header a machine can act on as well as
+      // in prose a person can read.
+      if (error instanceof RateLimitedError) {
+        void reply.header('retry-after', String(error.retryAfterSeconds));
+      }
       void reply.status(error.status).send(error.toProblem(correlationId));
       return;
     }
