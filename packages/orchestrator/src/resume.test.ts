@@ -166,3 +166,26 @@ describe('resuming a checkpointed scan', () => {
     expect(result.events[0]?.seq).toBe(0);
   });
 });
+
+describe('a failing scan', () => {
+  it('delivers phase.failed and scan.failed, in an unbroken sequence', async () => {
+    // Emitting `phase.failed` from inside the node that is about to throw
+    // spends a `seq` on an event LangGraph may never flush — the stream then
+    // has a hole where the failure should be, and a resumed scan continues past
+    // a number nobody ever saw. CI caught it; this keeps it caught.
+    const result = await drain({ driver: countingDriver(true) }, input());
+
+    expect(result.error?.message).toContain('the worker died mid-scan');
+    const types = result.events.map((event) => event.type);
+    expect(types).toContain('phase.failed');
+    expect(types.at(-1)).toBe('scan.failed');
+
+    const failure = result.events.find((event) => event.type === 'phase.failed');
+    expect(failure).toMatchObject({ phase: 'detect' });
+
+    // No gaps: every seq the scan minted was also delivered.
+    expect(result.events.map((event) => event.seq)).toEqual(
+      result.events.map((_event, index) => index),
+    );
+  });
+});

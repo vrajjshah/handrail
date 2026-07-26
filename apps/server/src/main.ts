@@ -23,6 +23,7 @@ const app = await buildServer({
   artifacts: runtime.artifacts,
   toolVersion: HANDRAIL_VERSION,
   eventBus: runtime.eventBus,
+  readiness: runtime.readiness,
   ...(runtime.queue === undefined ? {} : { queue: runtime.queue }),
 });
 

@@ -121,6 +121,7 @@ function degradation(reason: Degradation['reason'], detail: string, phase: ScanP
 export function createScanGraph(
   deps: ScanGraphDeps,
   emitter: ScanEventEmitter,
+  onPhaseFailure?: (phase: ScanPhase) => void,
 ): CompiledScanGraph {
   /** Bind the node's custom-stream writer, run the body, and time the phase. */
   function phase(
@@ -140,12 +141,14 @@ export function createScanGraph(
         });
         return update;
       } catch (error) {
-        emitter.emit({
-          type: 'phase.failed',
-          phase: name,
-          code: error instanceof ModelError ? error.code : 'phase-error',
-          message: (error instanceof Error ? error.message : String(error)).slice(0, 4000),
-        });
+        // Deliberately *not* emitted here. An event written to a node's stream
+        // writer immediately before that node throws may never be flushed —
+        // LangGraph is propagating the error at the same moment — so the `seq`
+        // is spent and the event is silently lost. CI caught exactly that: a
+        // resumed scan whose event stream had a hole where `phase.failed`
+        // should have been. The failure is reported instead by `streamScan`,
+        // on the path that yields directly rather than through the graph.
+        onPhaseFailure?.(name);
         throw error;
       } finally {
         emitter.useSink(undefined);
@@ -447,7 +450,12 @@ export async function* streamScan(
     ...(input.now ? { now } : {}),
     ...(input.startSeq === undefined ? {} : { startSeq: input.startSeq }),
   });
-  const graph = createScanGraph(deps, emitter);
+
+  // Which phase threw, recorded by the node and reported out here.
+  let failedPhase: ScanPhase | undefined;
+  const graph = createScanGraph(deps, emitter, (phase) => {
+    failedPhase = phase;
+  });
 
   // The ledger records every model call; the emitter is the only thing allowed
   // to mint a `seq`. This is where the two meet: an invocation recorded inside a
@@ -493,11 +501,18 @@ export async function* streamScan(
       }
     }
   } catch (error) {
-    const failure = emitter.emit({
-      type: 'scan.failed',
-      code: error instanceof ModelError ? error.code : 'scan-error',
-      message: (error instanceof Error ? error.message : String(error)).slice(0, 4000),
-    });
+    const code = error instanceof ModelError ? error.code : 'scan-error';
+    const message = (error instanceof Error ? error.message : String(error)).slice(0, 4000);
+
+    // Both are emitted and yielded here, where delivery is certain, rather than
+    // written to the writer of a node that is in the middle of throwing.
+    if (failedPhase !== undefined) {
+      const phaseFailure = emitter.emit({ type: 'phase.failed', phase: failedPhase, code, message });
+      collect(phaseFailure);
+      yield phaseFailure;
+    }
+
+    const failure = emitter.emit({ type: 'scan.failed', code, message });
     collect(failure);
     yield failure;
     unobserve?.();

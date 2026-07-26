@@ -9,6 +9,8 @@ import {
 import type { Config } from './config.js';
 import { connect, type DatabaseHandle } from './db/client.js';
 import { MemoryEventBus, type ScanEventBus } from './events/bus.js';
+import type { ReadinessCheck } from './health/checks.js';
+import { chromiumCheck, databaseCheck, queueCheck } from './health/probes.js';
 import { PostgresEventBus } from './events/postgres-bus.js';
 import { MemoryArtifactReader, MemoryScanStore } from './store/memory.js';
 import { PostgresScanStore } from './store/postgres.js';
@@ -29,6 +31,8 @@ export interface Runtime {
   artifacts: ArtifactReader;
   queue: ScanQueue | undefined;
   eventBus: ScanEventBus;
+  /** What `/readyz` proves for this deployment. */
+  readiness: ReadinessCheck[];
   checkpointer: ScanCheckpointer | undefined;
   database: DatabaseHandle | undefined;
   /** True when nothing survives a restart. Reported, never hidden. */
@@ -55,6 +59,9 @@ export function buildRuntime(config: Config): Runtime {
       artifacts: new MemoryArtifactReader(),
       queue: undefined,
       eventBus,
+      // No database and no queue to check. Chromium still is: without it this
+      // process could not run a scan even if the rest arrived.
+      readiness: [chromiumCheck()],
       checkpointer: undefined,
       database: undefined,
       ephemeral: true,
@@ -81,6 +88,7 @@ export function buildRuntime(config: Config): Runtime {
     artifacts: new MemoryArtifactReader(),
     queue,
     eventBus,
+    readiness: [databaseCheck(database.db), queueCheck(queue), chromiumCheck()],
     checkpointer: createPostgresCheckpointer(config.DATABASE_URL),
     database,
     ephemeral: false,
