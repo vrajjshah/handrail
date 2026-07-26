@@ -12,3 +12,4 @@ export * from './rollup.js';
 export * from './build-report.js';
 export * from './html.js';
 export * from './evidence-images.js';
+export * from './screenshot-evidence.js';

@@ -60,7 +60,7 @@ export class CostLedger {
   readonly correlationId: string;
   private readonly now: () => Date;
   private readonly newId: () => string;
-  private readonly onInvocation: ((invocation: ModelInvocation) => void) | undefined;
+  private readonly listeners: ((invocation: ModelInvocation) => void)[] = [];
   private readonly rows: ModelInvocation[] = [];
 
   constructor(options: CostLedgerOptions) {
@@ -68,7 +68,24 @@ export class CostLedger {
     this.correlationId = options.correlationId ?? String(options.scanId);
     this.now = options.now ?? (() => new Date());
     this.newId = options.newId ?? (() => `inv_${randomUUID()}`);
-    this.onInvocation = options.onInvocation;
+    if (options.onInvocation !== undefined) this.listeners.push(options.onInvocation);
+  }
+
+  /**
+   * Watch every invocation from now on.
+   *
+   * The ledger is constructed by whoever owns the credentials — a CLI, a worker
+   * — but the event stream is owned by the orchestrator, which only exists later
+   * and is the only thing allowed to mint a `seq`. This is the seam that lets the
+   * orchestrator turn a recorded invocation into a `model.invoked` event without
+   * the model package knowing what an event is.
+   */
+  observe(listener: (invocation: ModelInvocation) => void): () => void {
+    this.listeners.push(listener);
+    return () => {
+      const index = this.listeners.indexOf(listener);
+      if (index >= 0) this.listeners.splice(index, 1);
+    };
   }
 
   /** Every invocation recorded so far, in call order. */
@@ -169,7 +186,7 @@ export class CostLedger {
       startedAt: row.startedAt.toISOString(),
     });
     this.rows.push(invocation);
-    this.onInvocation?.(invocation);
+    for (const listener of this.listeners) listener(invocation);
     return invocation;
   }
 }

@@ -19,16 +19,20 @@ export interface BedrockClientOptions {
   /** A pre-built Mantle client, or a transport that replaces the network. */
   client?: AnthropicBedrockMantle;
   transport?: MessagesTransport;
+  /** Compose a layer around the transport — see the Anthropic provider's note. */
+  wrapTransport?: (inner: MessagesTransport) => MessagesTransport;
 }
 
+/** Lazy for the same reason as the Anthropic provider: `replay` needs no credentials. */
 function defaultTransport(options: BedrockClientOptions): MessagesTransport {
-  const client =
-    options.client ??
-    new AnthropicBedrockMantle({
+  let client: AnthropicBedrockMantle | undefined = options.client;
+  return (params) => {
+    client ??= new AnthropicBedrockMantle({
       ...(options.awsRegion === undefined ? {} : { awsRegion: options.awsRegion }),
       ...options.clientOptions,
     });
-  return (params) => client.messages.create(params);
+    return client.messages.create(params);
+  };
 }
 
 /**
@@ -38,9 +42,10 @@ function defaultTransport(options: BedrockClientOptions): MessagesTransport {
  * shared provider factory parameterises.
  */
 export function createBedrockClient(options: BedrockClientOptions = {}): ModelClient {
+  const inner = options.transport ?? defaultTransport(options);
   return createMessagesClient({
     provider: 'bedrock',
-    transport: options.transport ?? defaultTransport(options),
+    transport: options.wrapTransport?.(inner) ?? inner,
     toWireModel: toBedrockModelId,
   });
 }

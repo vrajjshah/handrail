@@ -11,6 +11,7 @@
 export type { Browser, BrowserContext, Page } from 'playwright';
 
 export * from './capture/types.js';
+export * from './capture/browser.js';
 export * from './capture/state-capture.js';
 export * from './capture/artifacts.js';
 export * from './capture/signals.js';
