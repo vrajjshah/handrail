@@ -347,7 +347,21 @@ describe('report.html', () => {
     const html = renderReportHtml(report);
     expect(html).not.toMatch(/<link[^>]+rel=["']?stylesheet/i);
     expect(html).not.toMatch(/<script[^>]+src=/i);
-    expect(html).not.toMatch(/https?:\/\/(?!example\.com)/);
+
+    // Parse the hosts rather than pattern-matching around them. A negative
+    // lookahead like `https?://(?!example\.com)` is unanchored, so
+    // `https://example.com.attacker.com` slips straight through it — the
+    // assertion would pass on exactly the case it exists to catch.
+    const hosts = new Set<string>();
+    for (const [url] of html.matchAll(/https?:\/\/[^\s"'<>()]+/g)) {
+      try {
+        hosts.add(new URL(url).host);
+      } catch {
+        hosts.add(`unparseable:${url}`);
+      }
+    }
+    // Only the scanned page itself may appear, and only as a link back to it.
+    expect([...hosts]).toEqual(['example.com']);
   });
 
   it('carries the landmarks and heading outline its own scan will look for', () => {
