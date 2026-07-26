@@ -24,10 +24,16 @@ export interface FixtureServer {
  * the capture reads document coordinates, computed styles and the accessibility
  * tree, and a `data:` or `about:blank` document does not exercise the same paths
  * — relative asset URLs and same-origin rules included.
+ *
+ * Lives next to `capture-seeded-demo.ts` rather than under a `__test__/` folder
+ * because that generator imports it, so it has to be a module the build keeps.
+ * `tsconfig.build.json` drops every `__test__/**` path; a shared helper sitting
+ * in one would have been compiled into `dist` purely to keep the generator
+ * building. Same reasoning as `seeded-demo-fixture.ts`.
  */
 export async function serveSeededDemo(): Promise<FixtureServer> {
   const here = fileURLToPath(new URL('.', import.meta.url));
-  const root = normalize(join(here, '..', '..', '..', '..', '..', 'fixtures', 'apps', 'seeded-demo', 'dist'));
+  const root = normalize(join(here, '..', '..', '..', '..', 'fixtures', 'apps', 'seeded-demo', 'dist'));
 
   if (!existsSync(join(root, 'index.html'))) {
     throw new Error(
