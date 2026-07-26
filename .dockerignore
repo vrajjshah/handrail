@@ -1,0 +1,38 @@
+# Keep the build context small and the image reproducible. Anything generated
+# on a developer's machine is rebuilt inside the image or does not belong in it.
+node_modules
+**/node_modules
+**/dist
+**/.tsbuild
+**/*.tsbuildinfo
+coverage
+
+.git
+.github
+.claude
+.vscode
+.idea
+
+# Never copy a real environment into an image. `.env.example` is the contract;
+# the values come from the platform.
+.env
+.env.*
+!.env.example
+
+# Scan output and browser scratch.
+scan-output
+test-results
+playwright-report
+.playwright
+.handrail
+
+# Docs and fixtures the runtime does not need. The seeded demo is a dev fixture
+# and the golden snapshots are CI's business.
+docs
+fixtures/golden
+*.md
+!README.md
+
+.DS_Store
+Thumbs.db
+*.log

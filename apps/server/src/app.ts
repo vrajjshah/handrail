@@ -16,6 +16,7 @@ import { registerHealthRoutes } from './routes/health.js';
 import { registerMetaRoutes } from './routes/meta.js';
 import { registerReportRoutes } from './routes/reports.js';
 import { RateLimitedError, registerScanRoutes } from './routes/scans.js';
+import { registerWebRoutes, sendAppShell } from './routes/web.js';
 import type { ArtifactReader, ScanStore } from './store/types.js';
 import type { ScanEventBus } from './events/bus.js';
 import type { ReadinessCheck } from './health/checks.js';
@@ -60,6 +61,8 @@ export interface ServerDeps {
    * be the transport.
    */
   logger?: FastifyBaseLogger;
+  /** Where the built SPA lives. Omit for the default; there is a no-op if absent. */
+  web?: { root?: string };
 }
 
 /**
@@ -127,6 +130,12 @@ export async function buildServer(deps: ServerDeps): Promise<FastifyInstance> {
     );
   });
 
+  // Registered before the not-found handler, because Fastify permits exactly
+  // one of those per prefix and it has to know whether there is an app to fall
+  // back to. With `wildcard: false` this adds a route per file, so it cannot
+  // shadow `/api`.
+  const servingWeb = await registerWebRoutes(app, deps.web ?? {});
+
   app.setErrorHandler((error, request, reply) => {
     const correlationId = correlationIdFrom(request.params);
 
@@ -182,8 +191,15 @@ export async function buildServer(deps: ServerDeps): Promise<FastifyInstance> {
     );
   }
 
-  app.setNotFoundHandler((request, reply) => {
-    void reply.status(404).send(
+  app.setNotFoundHandler(async (request, reply) => {
+    // Anything outside `/api` is a client-side route when there is an app to
+    // serve. Answering a bad *API* call with a page of HTML would be the least
+    // useful thing a client could receive, so the two are kept apart.
+    if (servingWeb && sendAppShell(request)) {
+      return reply.header('cache-control', 'no-cache').type('text/html').sendFile('index.html');
+    }
+
+    return reply.status(404).send(
       ProblemSchema.parse({
         code: 'not-found',
         title: 'Not found',

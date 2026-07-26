@@ -1,0 +1,17 @@
+{
+  "$schema": "https://railway.com/railway.schema.json",
+  "build": {
+    "builder": "DOCKERFILE",
+    "dockerfilePath": "Dockerfile"
+  },
+  "deploy": {
+    "//": "Migrations run here, once, before any new container serves traffic — never on boot, where two starting containers would race through the same DDL. A failing pre-deploy aborts the deploy and leaves the previous version serving.",
+    "preDeployCommand": ["pnpm --filter @handrail/server db:migrate"],
+    "startCommand": "pnpm --filter @handrail/server start",
+    "healthcheckPath": "/readyz",
+    "//healthcheck": "/readyz, not /healthz: Railway holds the old version until this passes, and the claim worth gating a release on is 'a scan can run', not 'the process started'.",
+    "healthcheckTimeout": 120,
+    "restartPolicyType": "ON_FAILURE",
+    "restartPolicyMaxRetries": 3
+  }
+}

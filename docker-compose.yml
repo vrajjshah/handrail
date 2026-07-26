@@ -1,0 +1,73 @@
+# Local parity with the deployed stack: the same image, the same roles, the same
+# explicit migration step. The plan names macOS-dev-versus-Linux-deploy drift as
+# a risk and `docker compose up` as the mitigation — that only works if what
+# runs here is what runs there.
+#
+#   docker compose up --build
+#   open http://localhost:8080
+#
+# `SERVICE_ROLE=both` runs the API and the worker in one process, which is how
+# the demo is deployed. Split it into two services to rehearse the api/worker
+# topology; the image is the same either way.
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: handrail
+      POSTGRES_PASSWORD: handrail
+      POSTGRES_DB: handrail
+    ports:
+      # 5433 on the host, so this never collides with a local Postgres — and so
+      # it matches the port the `*.pg.test.ts` suites expect.
+      - '5433:5432'
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U handrail -d handrail']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # A one-shot container that applies the committed migrations and exits.
+  # Separate on purpose: this is the same explicit pre-start step Railway runs
+  # as `preDeployCommand`, and the server must never do it on boot.
+  migrate:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: ['pnpm', '--filter', '@handrail/server', 'db:migrate']
+    environment:
+      DATABASE_URL: postgresql://handrail:handrail@postgres:5432/handrail
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: 'no'
+
+  handrail:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - '8080:8080'
+    environment:
+      SERVICE_ROLE: both
+      PORT: 8080
+      HOST: 0.0.0.0
+      PUBLIC_URL: http://localhost:8080
+      LOG_LEVEL: info
+      NODE_ENV: production
+      DATABASE_URL: postgresql://handrail:handrail@postgres:5432/handrail
+      # Set one to bypass the rate limits while poking at a local instance.
+      # ADMIN_TOKEN: ""
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    # Chromium needs more than Docker's default 64MB of shared memory or it
+    # crashes part-way through a page in ways that look like a scanner bug.
+    shm_size: 1gb
+
+volumes:
+  postgres-data:

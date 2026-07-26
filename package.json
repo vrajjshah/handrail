@@ -23,7 +23,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "prepare": "lefthook install",
+    "prepare": "lefthook install || echo 'lefthook not installed \u2014 no git checkout, which is expected inside a container'",
     "test:browser": "vitest run --config vitest.browser.config.ts",
     "test:pg": "vitest run --config vitest.pg.config.ts"
   },
