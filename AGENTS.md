@@ -20,6 +20,13 @@ reserved that slot for.
 
 Landed:
 
+- **The deploy pipeline, and a live deployment (#21).** One Dockerfile on the
+  Playwright base at the pinned tag, `SERVICE_ROLE` picking the role, compose
+  parity verified by running a real scan inside the container, and
+  **`https://handrail-production-34eb.up.railway.app` is live** — Postgres, the
+  queue and Chromium all green, serving the SPA and the API from one image.
+  Both halves of the acceptance were rehearsed against the live deployment;
+  `docs/OPERATIONS.md` §5 has the transcripts.
 - **Health and structured logging (#20).** `/healthz` is liveness and checks
   nothing else; `/readyz` proves Postgres *with its migrations applied*, the
   queue, and **a real Chromium launch** — verified against a running server:
@@ -212,9 +219,9 @@ Verified working: `pnpm install && pnpm test` green from a clean clone,
 
 ## Next up
 
-**Phase 2 is half done: #14–#20 are merged, #21–#26 are not.** Audited on
-2026-07-26 against the plan's own Phase 2 acceptance row and §Verification per
-phase — not the issue checkboxes.
+**Phase 2: #14–#21 are merged, #22–#26 are not.** Audited on 2026-07-26 against
+the plan's own Phase 2 acceptance row and §Verification per phase — not the
+issue checkboxes.
 
 **What the audit could verify, live, today** (a real server, real Postgres,
 real Chromium, `https://example.com`):
@@ -234,14 +241,15 @@ real Chromium, `https://example.com`):
 
 | Acceptance clause | State | Owner |
 |---|---|---|
-| Public URL, paste a site, watch it stream | **not started** — no deploy, and no scan screen | #21, #23 |
+| Public URL | **live** — the shell and the API are deployed | #21 |
+| Paste a site, watch it stream | **not started** — no scan screen | #23 |
 | Scan survives restart | **done**, proven | #18 |
 | SSRF attempts rejected | **done**, proven | #19 |
-| Stats endpoint live | endpoint works; nothing is *live* | #21 |
+| Stats endpoint live | **live** at `/api/meta` | #21 |
 | UI passes its own scan **in CI** | the scan passes (0 findings, 5 pass-verified); it is **not a gate** | #24 |
 | Manual VoiceOver pass | **not started** — a human task | #26 |
-| deploy.yml smoke + rollback rehearsed | **not started** | #21 |
-| `docker compose up` full scan **on Windows** | **not started** — no compose file, and no Windows machine here | #21 + the owner |
+| deploy.yml smoke + rollback rehearsed | **done** — both rehearsed live, OPERATIONS.md §5 | #21 |
+| `docker compose up` full scan **on Windows** | compose works and runs a real scan; **the Windows half is unverified** — no Windows machine here | the owner |
 
 **Three gaps worth knowing before picking up #21–#23:**
 
@@ -285,6 +293,31 @@ comparison scorecard wants a second rule engine.
 
 ## Known gotchas
 
+- **Railway's builder rejects an unprefixed BuildKit cache-mount id.**
+  `--mount=type=cache,id=pnpm-store` fails with "missing the cacheKey prefix
+  from its id". The mount was removed rather than prefixed: a Dockerfile that
+  only builds on one platform is not the portable artifact it exists to be, and
+  layer caching already covers the common case.
+- **The Playwright base image ships a newer Node than the repo pins.** v24 at
+  the time of writing, against `.node-version`'s 22.23.1 — so the container
+  would run a different major than CI tested. The image installs Node from the
+  pin file (checksum-verified, `.tar.gz` because the base has no `xz-utils`),
+  which means the two cannot drift.
+- **`prepare: lefthook install` fails in a container**, because there is no git
+  checkout, and it takes `pnpm install` down with it. The script now tolerates
+  that and says why.
+- **Fastify allows exactly one not-found handler per prefix.** The SPA fallback
+  cannot register its own; `registerWebRoutes` returns whether it is serving and
+  `app.ts` owns the single handler. `@fastify/static` uses `wildcard: false` so
+  it registers a route per file and cannot shadow `/api`.
+- **Gate the platform healthcheck on `/readyz`, not `/healthz`.** Rehearsed
+  live: a container that could not launch Chromium stayed `DEPLOYING`, went
+  `FAILED`, and never took traffic — the previous version served throughout. A
+  liveness-only gate would have promoted it.
+- **A green `/readyz` does not mean the demo works.** Also rehearsed live: with
+  `SERVICE_ROLE=api` every probe returned 200 and no scan ever finished, because
+  nothing consumed the queue. Only the smoke gate caught it. That is the whole
+  argument for scanning our own landing page after a deploy.
 - **An event emitted from inside a node that then throws may never be
   delivered.** `phase.failed` was written to the node's stream writer
   immediately before the node rethrew, and whether LangGraph flushes that chunk

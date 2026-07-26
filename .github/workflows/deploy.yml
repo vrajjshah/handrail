@@ -1,0 +1,91 @@
+name: Deploy
+
+# Only after CI is green on main. `workflow_run` rather than `push`, because a
+# deploy that races the test suite is a deploy that can ship a red commit — and
+# the whole point of a pipeline is that the gates are in order.
+on:
+  workflow_run:
+    workflows: ['CI']
+    branches: [main]
+    types: [completed]
+  # A manual re-run, for redeploying after a rollback.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  # Never two deploys at once: the pre-deploy migration is a single writer, and
+  # two of them racing through the same DDL is the failure that step exists to
+  # prevent.
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    # `workflow_run` fires for failures too. Deploying one would defeat the
+    # entire arrangement.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: ${{ vars.PUBLIC_URL }}
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # For `workflow_run`, the default checkout is the *default branch tip*,
+          # not the commit that passed CI. Pinning it is what makes "deploy what
+          # was tested" true rather than usually true.
+          ref: ${{ github.event.workflow_run.head_sha || github.ref }}
+
+      - run: corepack enable
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      - name: Deploy to Railway
+        env:
+          # A project token, from the Railway dashboard. It is the only secret
+          # this workflow needs; the database URL is a Railway variable
+          # reference and never leaves the platform.
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: |
+          if [ -z "${RAILWAY_TOKEN}" ]; then
+            echo "::error::RAILWAY_TOKEN is not set. Add it under Settings → Secrets → Actions."
+            exit 1
+          fi
+          npm i -g @railway/cli@5
+          # Migrations are Railway's `preDeployCommand` (see railway.json), so
+          # they run once, inside the platform, before the new container takes
+          # traffic. Running them from here would migrate from a machine that is
+          # not the one about to serve.
+          railway up --service handrail --ci
+
+      - name: Post-deploy smoke
+        id: smoke
+        env:
+          # Spends the smoke's own allowance rather than a visitor's three.
+          ADMIN_TOKEN: ${{ secrets.ADMIN_TOKEN }}
+        run: |
+          if [ -z "${{ vars.PUBLIC_URL }}" ]; then
+            echo "::error::the PUBLIC_URL repository variable is not set"
+            exit 1
+          fi
+          # Polls /readyz, submits a scan of the deployment's own landing page,
+          # waits for it, and validates the report against @handrail/schemas.
+          # "The container started" is not the claim worth releasing on.
+          pnpm --filter @handrail/server smoke "${{ vars.PUBLIC_URL }}"
+
+      - name: The smoke failed — what to do
+        if: failure() && steps.smoke.outcome == 'failure'
+        run: |
+          echo "::error::The deployment is live but did not pass its smoke test."
+          echo "Roll it back now — the runbook is docs/OPERATIONS.md § Rollback."
+          echo "  railway deployment list --service handrail"
+          echo "  # then redeploy the last SUCCESS from the Railway dashboard"
+          exit 1

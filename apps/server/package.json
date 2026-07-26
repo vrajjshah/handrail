@@ -10,11 +10,13 @@
   },
   "scripts": {
     "dev": "tsx watch src/main.ts",
-    "start": "node dist/main.js",
+    "start": "tsx src/main.ts",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "tsx src/scripts/migrate.ts"
+    "db:migrate": "tsx src/scripts/migrate.ts",
+    "smoke": "tsx src/scripts/smoke-main.ts"
   },
   "dependencies": {
+    "@fastify/static": "^10.1.2",
     "@fastify/swagger": "^9.8.1",
     "@handrail/engine": "workspace:*",
     "@handrail/orchestrator": "workspace:*",
@@ -31,6 +33,7 @@
   },
   "devDependencies": {
     "@types/pg": "^8.20.0",
-    "drizzle-kit": "^0.31.10"
+    "drizzle-kit": "^0.31.10",
+    "tsx": "^4.23.1"
   }
 }
