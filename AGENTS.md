@@ -20,6 +20,13 @@ reserved that slot for.
 
 Landed:
 
+- `apps/server` — the Fastify API (#16). `POST /api/scans` (202), `GET
+  /api/scans/:id`, `/report(.html|.sarif)`, `/api/artifacts/:id`, `/api/meta`
+  with nearest-rank p50/p95, and `/openapi.json` **generated** from the same Zod
+  contracts that validate the traffic. Plus SARIF 2.1.0 in the engine, where
+  `likely` maps to `warning` and never `error`. A `ScanStore` port with an
+  in-memory adapter is the seam #18's Postgres slots into. Making the OpenAPI
+  real forced two genuine contract fixes — see gotchas.
 - `apps/web` shell on React Aria Components (#15) — skip link, banner, named
   `Main` nav, `<main tabindex="-1">`, inverse footer, and a three-state
   System/Light/Dark theme control applied before first paint. **Handrail scans
@@ -166,11 +173,14 @@ Verified working: `pnpm install && pnpm test` green from a clean clone,
 
 ## Next up
 
-**Phase 2 — the hosted showcase.** #14 and #15 are done: the design system
-exists and the shell stands on it. Next is the server chain in dependency
-order — #16 (Fastify + Zod + OpenAPI) → #18 (Drizzle + pg-boss) → #17 (SSE
-replay) → #19 (abuse controls) → #20 (healthz/readyz) — then #23 fills the
-shell with the scan flow.
+**Phase 2 — the hosted showcase.** #14, #15 and #16 are done. Next in
+dependency order: #18 (Drizzle + pg-boss) → #17 (SSE replay) → #19 (abuse
+controls) → #20 (healthz/readyz), then #23 fills the shell with the scan flow.
+
+**The API cannot run a scan yet, deliberately.** `POST /api/scans` records a
+`queued` scan and nothing consumes the queue: the worker is #18. The store is
+in-memory until then, and `main.ts` logs that a restart loses everything rather
+than letting it look durable.
 
 **Phase 1 is genuinely done** — audited against the plan's acceptance row and
 §Verification per phase, not just the issue list. All twelve issues closed, three
@@ -226,6 +236,19 @@ comparison scorecard wants a second rule engine.
 
 ## Known gotchas
 
+- **A `z.transform` or `z.preprocess` anywhere inside a response schema is a
+  500, and a JSON Schema of `{}`.** `fastify-type-provider-zod` *encodes* the
+  response (output → wire), and a unidirectional transform cannot be encoded:
+  `ZodEncodeError: Encountered unidirectional transform`. Separately,
+  `z.toJSONSchema` refuses transforms and `z.custom`, so the generated OpenAPI
+  documents them as an empty object — **no error, no warning, just a spec that
+  has stopped describing anything.** Both bit here. The fixes are the better
+  contracts anyway: `FindingSchema`'s tier-downgrade invariant is now
+  `.overwrite` (same behaviour, bidirectional), the heuristic source is a
+  `z.templateLiteral` rather than `z.custom`, and `source`'s single-or-array
+  normalisation is a `z.codec` with a real `encode`. `openapi.test.ts` asserts
+  the report schema is >500 chars and names its fields, because that is the only
+  way to notice the `{}`.
 - **`kbd.focus-visible` cannot see that the focused element is invisible — our
   own UI proved it.** React Aria puts DOM focus on a *visually hidden* input for
   radios, checkboxes and switches and marks the rendered element with
@@ -264,6 +287,12 @@ comparison scorecard wants a second rule engine.
   against every button fill. Switching to `box-shadow` would also break
   forced-colors mode, where a focus indicator matters most; `css.test.ts`
   asserts the string `box-shadow` never appears.
+- **An `interface` cannot be passed where a loose-object schema is expected.**
+  Only a `type` alias gets an implicit index signature, so `SarifLog` is a type
+  alias with a one-line eslint exemption — the alternative was a cast at the
+  call site, which would have silenced real shape errors too. Note that
+  `consistent-type-definitions` and `noImplicitAny`-style assignability pull in
+  opposite directions here; the lint rule is the one that yields.
 - **`apps/web` is the one package that deviates from `tsconfig.base`.** Vite
   owns resolution there, so it sets `module: preserve` + `moduleResolution:
   bundler` + `jsx: react-jsx`; `NodeNext` rejects the extensionless imports Vite

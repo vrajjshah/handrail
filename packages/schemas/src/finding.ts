@@ -15,12 +15,20 @@ import {
 /** A heuristic source names the check that produced it, e.g. "heuristic:kbd.walk". */
 export type HeuristicSource = `heuristic:${string}`;
 
-const HEURISTIC_SOURCE = /^heuristic:[a-z][a-z0-9]*\.[a-z0-9-]+$/;
-
-const HeuristicSourceSchema = z.custom<HeuristicSource>(
-  (value) => typeof value === 'string' && HEURISTIC_SOURCE.test(value),
-  { message: 'expected "heuristic:<checkId>", e.g. "heuristic:kbd.walk"' },
-);
+/**
+ * A template literal rather than `z.custom`.
+ *
+ * Both give the `heuristic:${string}` type and the same strictness, but a
+ * `z.custom` is opaque to `z.toJSONSchema` — it makes the whole `Finding`
+ * unrepresentable, and with it every schema that contains one. That matters
+ * because the hosted API's OpenAPI document is *generated* from these
+ * contracts; a contract that cannot be described is a contract the API can
+ * drift from without anything noticing.
+ */
+const HeuristicSourceSchema = z.templateLiteral([
+  'heuristic:',
+  z.string().regex(/^[a-z][a-z0-9]*\.[a-z0-9-]+$/, 'expected a check id like "kbd.walk"'),
+]);
 
 export const DeterministicSourceSchema = z.union([
   z.enum(['axe', 'eslint', 'typecheck']),
@@ -36,6 +44,27 @@ export type FindingSource = z.infer<typeof FindingSourceSchema>;
 export function isAiSource(source: FindingSource): source is AiSource {
   return source === 'ai-text' || source === 'ai-vision';
 }
+
+/**
+ * One source or several, always read as a list.
+ *
+ * A `z.codec` rather than a `z.preprocess`, because a preprocess is a
+ * *unidirectional* transform: a schema containing one can be parsed but not
+ * encoded, and the hosted API's response serializer encodes — so a `Finding`
+ * with a preprocess anywhere inside it is a 500 at serialization time, not a
+ * type error at build time. Found exactly that way.
+ *
+ * Encoding always emits the array form, which is itself valid input, so the
+ * round trip is lossless in both directions.
+ */
+const FindingSourceListSchema = z.codec(
+  z.union([FindingSourceSchema, z.array(FindingSourceSchema).min(1)]),
+  z.array(FindingSourceSchema).min(1),
+  {
+    decode: (value) => (Array.isArray(value) ? value : [value]),
+    encode: (sources) => sources,
+  },
+);
 
 /**
  * Confidence tier. This is the single most load-bearing field in the product:
@@ -108,10 +137,7 @@ export const FindingObjectSchema = z
     id: FindingIdSchema,
     checkId: CheckIdSchema,
     /** One or more producers. Normalised to an array even when a single source is given. */
-    source: z.preprocess(
-      (value: unknown) => (Array.isArray(value) ? (value as unknown[]) : [value]),
-      z.array(FindingSourceSchema).min(1),
-    ),
+    source: FindingSourceListSchema,
     sc: z.array(ScIdSchema).min(1),
     scPrimary: ScIdSchema,
     tier: TierSchema,
@@ -176,8 +202,15 @@ export function tierCeilingFor(finding: {
  * `needs-review` on parse. This is enforced here, in the contract, so that no
  * amount of prompt drift or engine bug can put an unevidenced model claim in
  * front of a user as a violation.
+ *
+ * `.overwrite` rather than `.transform` — the two behave identically here
+ * because the shape is unchanged, but a `.transform` makes the schema's *output*
+ * opaque to `z.toJSONSchema`, and the hosted API generates its OpenAPI document
+ * from these contracts. An unrepresentable response schema would be documented
+ * as `{}`: no error, no signal, just an API description that has quietly stopped
+ * describing anything.
  */
-export const FindingSchema = FindingObjectSchema.transform((finding) => {
+export const FindingSchema = FindingObjectSchema.overwrite((finding) => {
   const unevidencedAiClaim = finding.source.some(isAiSource) && finding.evidence.length === 0;
   if (!unevidencedAiClaim) return finding;
   return { ...finding, tier: minTier(finding.tier, 'needs-review') };

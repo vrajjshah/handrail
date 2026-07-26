@@ -1,0 +1,26 @@
+{
+  "name": "@handrail/server",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "The hosted Handrail API: submit a scan, stream its events, read the evidence report.",
+  "license": "MIT",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "dev": "tsx watch src/main.ts",
+    "start": "node dist/main.js"
+  },
+  "dependencies": {
+    "@fastify/swagger": "^9.8.1",
+    "@handrail/engine": "workspace:*",
+    "@handrail/orchestrator": "workspace:*",
+    "@handrail/schemas": "workspace:*",
+    "@handrail/wcag": "workspace:*",
+    "fastify": "^5.10.0",
+    "fastify-type-provider-zod": "^7.0.0",
+    "openapi-types": "^12.1.3",
+    "zod": "^4.4.3"
+  }
+}

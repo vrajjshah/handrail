@@ -13,3 +13,4 @@ export * from './build-report.js';
 export * from './html.js';
 export * from './evidence-images.js';
 export * from './screenshot-evidence.js';
+export * from './sarif.js';
