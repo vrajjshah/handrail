@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Handrail — the open-source AI accessibility engineer</title>
+    <meta
+      name="description"
+      content="Evidence-first WCAG 2.2 scanning with honest coverage. Every finding carries the evidence it was made from."
+    />
+    <link rel="icon" href="data:," />
+    <script>
+      /*
+       * Apply the stored theme before first paint.
+       *
+       * Doing this in React would mean one frame of the wrong theme on every
+       * load — a white flash for a dark-mode reader, which is a real
+       * accessibility problem for photophobia and not merely a polish issue.
+       * `system` writes nothing: theme.css already answers the OS preference,
+       * and pinning the resolved value here would stop the page following a
+       * change made while it is open.
+       */
+      try {
+        var stored = localStorage.getItem('handrail:theme');
+        if (stored === 'light' || stored === 'dark') {
+          document.documentElement.setAttribute('data-theme', stored);
+        }
+      } catch (error) {
+        /* Storage can be blocked outright. The OS preference still applies. */
+      }
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
