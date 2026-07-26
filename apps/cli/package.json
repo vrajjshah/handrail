@@ -26,7 +26,8 @@
     "dist"
   ],
   "scripts": {
-    "handrail": "tsx src/main.ts"
+    "handrail": "tsx src/main.ts",
+    "golden:scan": "tsx src/scripts/golden-scan.ts"
   },
   "dependencies": {
     "@handrail/engine": "workspace:*",
@@ -35,5 +36,8 @@
     "@handrail/schemas": "workspace:*",
     "execa": "^9.6.0",
     "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "playwright": "^1.61.1"
   }
 }

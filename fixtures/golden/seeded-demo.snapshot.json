@@ -1,0 +1,1148 @@
+{
+  "events": [
+    {
+      "type": "phase.started",
+      "phase": "crawl"
+    },
+    {
+      "type": "log",
+      "phase": "crawl",
+      "level": "info"
+    },
+    {
+      "type": "phase.completed",
+      "phase": "crawl"
+    },
+    {
+      "type": "phase.started",
+      "phase": "capture"
+    },
+    {
+      "type": "phase.completed",
+      "phase": "capture"
+    },
+    {
+      "type": "phase.started",
+      "phase": "detect"
+    },
+    {
+      "type": "finding.detected",
+      "checkId": "axe.color-contrast",
+      "tier": "violation",
+      "scPrimary": "1.4.3"
+    },
+    {
+      "type": "finding.detected",
+      "checkId": "axe.html-has-lang",
+      "tier": "violation",
+      "scPrimary": "3.1.1"
+    },
+    {
+      "type": "finding.detected",
+      "checkId": "axe.image-alt",
+      "tier": "violation",
+      "scPrimary": "1.1.1"
+    },
+    {
+      "type": "finding.detected",
+      "checkId": "axe.color-contrast",
+      "tier": "needs-review",
+      "scPrimary": "1.4.3"
+    },
+    {
+      "type": "finding.detected",
+      "checkId": "kbd.walk",
+      "tier": "violation",
+      "scPrimary": "2.4.3"
+    },
+    {
+      "type": "finding.detected",
+      "checkId": "kbd.focus-visible",
+      "tier": "violation",
+      "scPrimary": "2.4.7"
+    },
+    {
+      "type": "finding.detected",
+      "checkId": "ptr.target-size",
+      "tier": "violation",
+      "scPrimary": "2.5.8"
+    },
+    {
+      "type": "phase.completed",
+      "phase": "detect"
+    },
+    {
+      "type": "phase.started",
+      "phase": "judge-text"
+    },
+    {
+      "type": "log",
+      "phase": "judge-text",
+      "level": "info"
+    },
+    {
+      "type": "phase.completed",
+      "phase": "judge-text"
+    },
+    {
+      "type": "phase.started",
+      "phase": "verdict"
+    },
+    {
+      "type": "phase.completed",
+      "phase": "verdict"
+    },
+    {
+      "type": "phase.started",
+      "phase": "site"
+    },
+    {
+      "type": "log",
+      "phase": "site",
+      "level": "info"
+    },
+    {
+      "type": "phase.completed",
+      "phase": "site"
+    },
+    {
+      "type": "phase.started",
+      "phase": "score"
+    },
+    {
+      "type": "log",
+      "phase": "score",
+      "level": "info"
+    },
+    {
+      "type": "phase.completed",
+      "phase": "score"
+    },
+    {
+      "type": "phase.started",
+      "phase": "report"
+    },
+    {
+      "type": "log",
+      "phase": "report",
+      "level": "info"
+    },
+    {
+      "type": "phase.completed",
+      "phase": "report"
+    },
+    {
+      "type": "scan.completed",
+      "findingsTotal": 7
+    }
+  ],
+  "report": {
+    "coverage": {
+      "criteriaTotal": 55,
+      "evaluated": 8,
+      "failed": 6,
+      "manualRequired": [
+        "1.2.1",
+        "1.2.2",
+        "1.2.3",
+        "1.2.4",
+        "1.2.5",
+        "1.3.1",
+        "1.3.2",
+        "1.3.3",
+        "1.3.4",
+        "1.3.5",
+        "1.4.1",
+        "1.4.2",
+        "1.4.4",
+        "1.4.5",
+        "1.4.10",
+        "1.4.11",
+        "1.4.12",
+        "1.4.13",
+        "2.1.1",
+        "2.1.2",
+        "2.1.4",
+        "2.2.1",
+        "2.2.2",
+        "2.3.1",
+        "2.4.1",
+        "2.4.2",
+        "2.4.4",
+        "2.4.5",
+        "2.4.6",
+        "2.4.11",
+        "2.5.1",
+        "2.5.2",
+        "2.5.3",
+        "2.5.4",
+        "2.5.7",
+        "3.1.2",
+        "3.2.1",
+        "3.2.2",
+        "3.2.6",
+        "3.3.1",
+        "3.3.2",
+        "3.3.3",
+        "3.3.4",
+        "3.3.7",
+        "3.3.8",
+        "4.1.2",
+        "4.1.3"
+      ],
+      "needsReview": 0,
+      "notApplicable": 2,
+      "notTested": 47,
+      "passVerified": 0
+    },
+    "findings": [
+      {
+        "checkId": "axe.color-contrast",
+        "confidence": 1,
+        "dedupeCount": 1,
+        "description": "Element has insufficient color contrast of 3.03 (foreground color: #949494, background color: #ffffff, font size: 12.0pt (16px), font weight: normal). Expected contrast ratio of 4.5:1",
+        "element": {
+          "accessibleName": "",
+          "bbox": {
+            "height": 25.59375,
+            "width": 778,
+            "x": 251,
+            "y": 751.5
+          },
+          "domExcerpt": "<p class=\"muted-note\" data-gt=\"gt-004\">Seatings are released on the first Monday of each month and tend to go within the hour.</p>",
+          "elementId": "e23",
+          "role": "paragraph",
+          "selector": "#root > div:nth-of-type(1) > main:nth-of-type(1) > section:nth-of-type(1) > p:nth-of-type(1)",
+          "xpath": "<normalised>"
+        },
+        "evidence": [
+          {
+            "kind": "tool",
+            "output": "Element has insufficient color contrast of 3.03 (foreground color: #949494, background color: #ffffff, font size: 12.0pt (16px), font weight: normal). Expected contrast ratio of 4.5:1",
+            "ruleId": "color-contrast",
+            "tool": "axe-core"
+          },
+          {
+            "excerpt": "<p class=\"muted-note\" data-gt=\"gt-004\">Seatings are released on the first Monday of each month and tend to go within the hour.</p>",
+            "kind": "dom",
+            "selector": ".muted-note"
+          },
+          {
+            "comparator": "gte",
+            "kind": "pixels",
+            "measured": 3.03,
+            "metric": "contrast-ratio",
+            "threshold": 4.5
+          }
+        ],
+        "id": "find_667d6b05a063825b",
+        "page": {
+          "pageStateId": "st_0101ccea72f3a209",
+          "url": "http://127.0.0.1:5179/",
+          "viewport": "desktop"
+        },
+        "sc": [
+          "1.4.3"
+        ],
+        "scPrimary": "1.4.3",
+        "severity": "serious",
+        "source": [
+          "axe"
+        ],
+        "tier": "violation",
+        "verification": {
+          "method": "none",
+          "status": "unverified"
+        }
+      },
+      {
+        "checkId": "axe.html-has-lang",
+        "confidence": 1,
+        "dedupeCount": 1,
+        "description": "The <html> element does not have a lang attribute",
+        "element": {
+          "accessibleName": "",
+          "bbox": {
+            "height": 2717.578125,
+            "width": 1280,
+            "x": 0,
+            "y": 0
+          },
+          "domExcerpt": "<html>",
+          "elementId": "e0",
+          "role": "none",
+          "selector": "html",
+          "xpath": "<normalised>"
+        },
+        "evidence": [
+          {
+            "kind": "tool",
+            "output": "The <html> element does not have a lang attribute",
+            "ruleId": "html-has-lang",
+            "tool": "axe-core"
+          },
+          {
+            "excerpt": "<html>",
+            "kind": "dom",
+            "selector": "html"
+          }
+        ],
+        "id": "find_7505cf2089705d74",
+        "page": {
+          "pageStateId": "st_0101ccea72f3a209",
+          "url": "http://127.0.0.1:5179/",
+          "viewport": "desktop"
+        },
+        "sc": [
+          "3.1.1"
+        ],
+        "scPrimary": "3.1.1",
+        "severity": "serious",
+        "source": [
+          "axe"
+        ],
+        "tier": "violation",
+        "verification": {
+          "method": "none",
+          "status": "unverified"
+        }
+      },
+      {
+        "checkId": "axe.image-alt",
+        "confidence": 1,
+        "dedupeCount": 1,
+        "description": "Element does not have an alt attribute",
+        "element": {
+          "accessibleName": "",
+          "bbox": {
+            "height": 162.5,
+            "width": 260,
+            "x": 251,
+            "y": 964.0625
+          },
+          "domExcerpt": "<img data-gt=\"gt-002\" width=\"260\" height=\"163\" src=\"/images/dinner-table.svg\">",
+          "elementId": "e28",
+          "role": "image",
+          "selector": "#menu > div:nth-of-type(1) > img:nth-of-type(1)",
+          "xpath": "<normalised>"
+        },
+        "evidence": [
+          {
+            "kind": "tool",
+            "output": "Element does not have an alt attribute",
+            "ruleId": "image-alt",
+            "tool": "axe-core"
+          },
+          {
+            "excerpt": "<img data-gt=\"gt-002\" width=\"260\" height=\"163\" src=\"/images/dinner-table.svg\">",
+            "kind": "dom",
+            "selector": "img[data-gt=\"gt-002\"]"
+          }
+        ],
+        "id": "find_32c5aade9e0b4229",
+        "page": {
+          "pageStateId": "st_0101ccea72f3a209",
+          "url": "http://127.0.0.1:5179/",
+          "viewport": "desktop"
+        },
+        "sc": [
+          "1.1.1"
+        ],
+        "scPrimary": "1.1.1",
+        "severity": "critical",
+        "source": [
+          "axe"
+        ],
+        "tier": "violation",
+        "verification": {
+          "method": "none",
+          "status": "unverified"
+        }
+      },
+      {
+        "checkId": "axe.color-contrast",
+        "confidence": 1,
+        "dedupeCount": 1,
+        "description": "Element's background color could not be determined because it's partially obscured by another element",
+        "element": {
+          "accessibleName": "Add Domaine Perrot to my list",
+          "bbox": {
+            "height": 24,
+            "width": 24,
+            "x": 269,
+            "y": 1759.828125
+          },
+          "domExcerpt": "<button type=\"button\" class=\"icon-button--ok\" aria-label=\"Add Domaine Perrot to my list\">Add</button>",
+          "elementId": "e61",
+          "role": "button",
+          "selector": "#cellar > p:nth-of-type(1) > span:nth-of-type(1) > button:nth-of-type(2)",
+          "xpath": "<normalised>"
+        },
+        "evidence": [
+          {
+            "kind": "tool",
+            "output": "Element's background color could not be determined because it's partially obscured by another element",
+            "ruleId": "color-contrast",
+            "tool": "axe-core"
+          },
+          {
+            "excerpt": "<button type=\"button\" class=\"icon-button--ok\" aria-label=\"Add Domaine Perrot to my list\">Add</button>",
+            "kind": "dom",
+            "selector": "button[aria-label=\"Add Domaine Perrot to my list\"]"
+          },
+          {
+            "comparator": "gte",
+            "kind": "pixels",
+            "measured": 0,
+            "metric": "contrast-ratio",
+            "threshold": 4.5
+          }
+        ],
+        "id": "find_9b029f0afeed9b5e",
+        "page": {
+          "pageStateId": "st_0101ccea72f3a209",
+          "url": "http://127.0.0.1:5179/",
+          "viewport": "desktop"
+        },
+        "sc": [
+          "1.4.3"
+        ],
+        "scPrimary": "1.4.3",
+        "severity": "serious",
+        "source": [
+          "axe"
+        ],
+        "tier": "needs-review",
+        "verification": {
+          "method": "none",
+          "status": "unverified"
+        }
+      },
+      {
+        "checkId": "kbd.walk",
+        "confidence": 1,
+        "dedupeCount": 1,
+        "description": "A positive tabindex pulls \"Contact\" out of order: it takes focus ahead of a control that comes before it in the document, so the tab sequence no longer matches the reading order.",
+        "element": {
+          "accessibleName": "Contact",
+          "bbox": {
+            "height": 19,
+            "width": 54.734375,
+            "x": 995.265625,
+            "y": 55
+          },
+          "elementId": "e18",
+          "role": "link",
+          "selector": "#root > div:nth-of-type(1) > header:nth-of-type(1) > nav:nth-of-type(1) > ul:nth-of-type(1) > li:nth-of-type(3) > a:nth-of-type(1)",
+          "xpath": "<normalised>"
+        },
+        "evidence": [
+          {
+            "kind": "tool",
+            "output": "Tab order: Contact (tabindex=1) → Menu (tabindex=0) → Cellar (tabindex=0) → Click here (tabindex=0) → One more bottle of Domaine Perrot (tabindex=0) → Add Domaine Perrot to my list (tabindex=0) → Add Keller und Sohn to my list (tabindex=0) → Add Quinta do Vale to my list (tabindex=0) → Email address (tabindex=0) → Number of guests (tabindex=0) → Request a seating (tabindex=0) → Join the list (tabindex=0). \"Contact\" (tabindex=1) receives focus before a control that precedes it in the document.",
+            "tool": "playwright"
+          },
+          {
+            "excerpt": "<a>Contact</a>",
+            "kind": "dom",
+            "selector": "#root > div:nth-of-type(1) > header:nth-of-type(1) > nav:nth-of-type(1) > ul:nth-of-type(1) > li:nth-of-type(3) > a:nth-of-type(1)"
+          }
+        ],
+        "id": "find_10fb23a42e0d633a",
+        "page": {
+          "pageStateId": "st_0101ccea72f3a209",
+          "url": "http://127.0.0.1:5179/",
+          "viewport": "desktop"
+        },
+        "sc": [
+          "2.4.3"
+        ],
+        "scPrimary": "2.4.3",
+        "severity": "moderate",
+        "source": [
+          "heuristic:kbd.walk"
+        ],
+        "tier": "violation",
+        "verification": {
+          "method": "none",
+          "status": "unverified"
+        }
+      },
+      {
+        "checkId": "kbd.focus-visible",
+        "confidence": 1,
+        "dedupeCount": 1,
+        "description": "\"Join the list\" shows no visible focus indicator when reached by keyboard — a sighted keyboard user cannot tell where focus is.",
+        "element": {
+          "accessibleName": "Join the list",
+          "bbox": {
+            "height": 49.59375,
+            "width": 127.046875,
+            "x": 251,
+            "y": 2440.390625
+          },
+          "elementId": "e83",
+          "role": "button",
+          "selector": "#root > div:nth-of-type(1) > main:nth-of-type(1) > section:nth-of-type(5) > button:nth-of-type(1)",
+          "xpath": "<normalised>"
+        },
+        "evidence": [
+          {
+            "comparator": "gte",
+            "kind": "pixels",
+            "measured": 0,
+            "metric": "focus-indicator-delta",
+            "threshold": 1
+          },
+          {
+            "kind": "tool",
+            "output": "Focusing \"Join the list\" produced no visible indicator: outline none/3px, and box-shadow, border and background were unchanged from the unfocused state.",
+            "tool": "playwright"
+          },
+          {
+            "excerpt": "<button>Join the list</button>",
+            "kind": "dom",
+            "selector": "#root > div:nth-of-type(1) > main:nth-of-type(1) > section:nth-of-type(5) > button:nth-of-type(1)"
+          }
+        ],
+        "id": "find_a55c62efeed03600",
+        "page": {
+          "pageStateId": "st_0101ccea72f3a209",
+          "url": "http://127.0.0.1:5179/",
+          "viewport": "desktop"
+        },
+        "sc": [
+          "2.4.7"
+        ],
+        "scPrimary": "2.4.7",
+        "severity": "serious",
+        "source": [
+          "heuristic:kbd.focus-visible"
+        ],
+        "tier": "violation",
+        "verification": {
+          "method": "none",
+          "status": "unverified"
+        }
+      },
+      {
+        "checkId": "ptr.target-size",
+        "confidence": 1,
+        "dedupeCount": 1,
+        "description": "Pointer target is 18×18 CSS pixels, under the 24×24 minimum, and is crowded against an adjacent target so the spacing exception does not apply.",
+        "element": {
+          "accessibleName": "One more bottle of Domaine Perrot",
+          "bbox": {
+            "height": 18,
+            "width": 18,
+            "x": 251,
+            "y": 1759.828125
+          },
+          "elementId": "e60",
+          "role": "button",
+          "selector": "#cellar > p:nth-of-type(1) > span:nth-of-type(1) > button:nth-of-type(1)",
+          "xpath": "<normalised>"
+        },
+        "evidence": [
+          {
+            "comparator": "gte",
+            "kind": "pixels",
+            "measured": 18,
+            "metric": "target-size-px",
+            "threshold": 24
+          },
+          {
+            "excerpt": "<button>+</button>",
+            "kind": "dom",
+            "selector": "#cellar > p:nth-of-type(1) > span:nth-of-type(1) > button:nth-of-type(1)"
+          }
+        ],
+        "id": "find_cdee93d5e8b3f8b7",
+        "page": {
+          "pageStateId": "st_0101ccea72f3a209",
+          "url": "http://127.0.0.1:5179/",
+          "viewport": "desktop"
+        },
+        "sc": [
+          "2.5.8"
+        ],
+        "scPrimary": "2.5.8",
+        "severity": "moderate",
+        "source": [
+          "heuristic:ptr.target-size"
+        ],
+        "tier": "violation",
+        "verification": {
+          "method": "none",
+          "status": "unverified"
+        }
+      }
+    ],
+    "generatedAt": "<normalised>",
+    "reportVersion": 1,
+    "scRollups": [
+      {
+        "checksRun": [
+          "axe.image-alt"
+        ],
+        "findingIds": [
+          "find_32c5aade9e0b4229"
+        ],
+        "level": "A",
+        "rationale": "1 measured violation(s) against 1.1.1 Non-text Content. A screen-reader user meets an image with no alternative as \"image\" or, worse, as a filename. Where the image is a link or a button, the destination becomes unguessable and the page stops working rather than merely degrading.",
+        "sc": "1.1.1",
+        "status": "fail"
+      },
+      {
+        "checksRun": [],
+        "findingIds": [],
+        "level": "A",
+        "rationale": "No automated check covers 1.2.1 (human-only). Manual test: Find every prerecorded audio-only and video-only item. Confirm an alternative exists, is linked near the media, and actually conveys the same information — including speaker identification for audio.",
+        "sc": "1.2.1",
+        "status": "not-tested"
+      },
+      {
+        "checksRun": [],
+        "findingIds": [],
+        "level": "A",
+        "rationale": "No automated check covers 1.2.2 (human-only). Manual test: Play each video with sound off. Confirm captions exist, stay in sync, identify speakers, and cover non-speech audio that carries meaning.",
+        "sc": "1.2.2",
+        "status": "not-tested"
+      },
+      {
+        "checksRun": [],
+        "findingIds": [],
+        "level": "A",
+        "rationale": "No automated check covers 1.2.3 (human-only). Manual test: Play each video without looking at the screen. Note anything you cannot follow, then confirm an audio description or full text alternative covers it.",
+        "sc": "1.2.3",
+        "status": "not-tested"
+      },
+      {
+        "checksRun": [],
+        "findingIds": [],
+        "level": "AA",
+        "rationale": "No automated check covers 1.2.4 (human-only). Manual test: For each live media feature, confirm real-time captions are provided and check their accuracy during an actual broadcast.",
+        "sc": "1.2.4",
+        "status": "not-tested"
+      },
+      {
+        "checksRun": [],
+        "findingIds": [],
+        "level": "AA",
+        "rationale": "No automated check covers 1.2.5 (human-only). Manual test: Confirm an audio-described track exists and that it covers the visual information not present in the main audio.",
+        "sc": "1.2.5",
+        "status": "not-tested"
+      },
+      {
+        "checksRun": [
+          "axe.aria-hidden-body",
+          "axe.list",
+          "axe.listitem",
+          "axe.td-headers-attr",
+          "axe.th-has-data-cells"
+        ],
+        "findingIds": [],
+        "level": "A",
+        "rationale": "axe.aria-hidden-body, axe.list, axe.listitem, axe.td-headers-attr, axe.th-has-data-cells ran and reported no failures, but no automated check can decide 1.3.1 outright — a failure-detector's silence is not a pass. A human must confirm: Compare the visual structure against the accessibility tree. Every grouping, heading level and label relationship that is visually obvious should be present in the tree too.",
+        "sc": "1.3.1",
+        "status": "not-tested"
+      },
+      {
+        "checksRun": [],
+        "findingIds": [],
+        "level": "A",
+        "rationale": "ai.reading-order cover 1.3.2 but none of them ran on this scan, or none found anything to examine. Manual test: Disable CSS, or read the page in DOM order, and confirm the content still makes sense in that sequence.",
+        "sc": "1.3.2",
+        "status": "not-tested"
+      },
+      {
+        "checksRun": [],
+        "findingIds": [],
+        "level": "A",
+        "rationale": "ai.sensory-instructions cover 1.3.3 but none of them ran on this scan, or none found anything to examine. Manual test: Read the instructions aloud without looking at the page. Anything you cannot follow depends on a sensory characteristic.",
+        "sc": "1.3.3",
+        "status": "not-tested"
+      },
+      {
+        "checksRun": [],
+        "findingIds": [],
+        "level": "AA",
+        "rationale": "resp.orientation-lock cover 1.3.4 but none of them ran on this scan, or none found anything to examine. Manual test: Load the page in both orientations on a real device and confirm both are usable.",
+        "sc": "1.3.4",
+        "status": "not-tested"
+      },
+      {
+        "checksRun": [],
+        "findingIds": [],
+        "level": "AA",
+        "rationale": "axe.autocomplete-valid, form.autocomplete cover 1.3.5 but none of them ran on this scan, or none found anything to examine. Manual test: For each field collecting user information, confirm the autocomplete token is present and drawn from the WCAG input-purpose list.",
+        "sc": "1.3.5",
+        "status": "not-tested"
+      },
+      {
+        "checksRun": [
+          "axe.link-in-text-block"
+        ],
+        "findingIds": [],
+        "level": "A",
+        "rationale": "axe.link-in-text-block ran and reported no failures, but no automated check can decide 1.4.1 outright — a failure-detector's silence is not a pass. A human must confirm: View the page in greyscale. Anything you can no longer tell apart or act on fails.",
+        "sc": "1.4.1",
+        "status": "not-tested"
+      },
+      {
+        "checksRun": [],
+        "findingIds": [],
+        "level": "A",
+        "rationale": "media.autoplay-audio cover 1.4.2 but none of them ran on this scan, or none found anything to examine. Manual test: Load the page and listen. If anything plays for more than three seconds, confirm a control to stop it is reachable immediately by keyboard.",
+        "sc": "1.4.2",
+        "status": "not-tested"
+      },
+      {
+        "checksRun": [
+          "axe.color-contrast"
+        ],
+        "findingIds": [
+          "find_667d6b05a063825b",
+          "find_9b029f0afeed9b5e"
+        ],
+        "level": "AA",
+        "rationale": "1 measured violation(s) against 1.4.3 Contrast (Minimum). The most-reported barrier there is. It affects users with low vision, ageing eyes, and anyone reading on a phone in daylight — a constituency far wider than the disability framing implies.",
+        "sc": "1.4.3",
+        "status": "fail"
+      },
+      {
+        "checksRun": [
+          "axe.meta-viewport"
+        ],
+        "findingIds": [],
+        "level": "AA",
+        "rationale": "axe.meta-viewport ran and reported no failures, but no automated check can decide 1.4.4 outright — a failure-detector's silence is not a pass. A human must confirm: Zoom to 200% and read every page. Confirm nothing is clipped, overlapped, or pushed out of reach.",
+        "sc": "1.4.4",
+        "status": "not-tested"
+      },
+      {
+        "checksRun": [],
+        "findingIds": [],
+        "level": "AA",
+        "rationale": "ai.images-of-text cover 1.4.5 but none of them ran on this scan, or none found anything to examine. Manual test: Look for text that cannot be selected. For each case, decide whether the presentation is genuinely essential — a logo is, a price list is not.",
+        "sc": "1.4.5",
+        "status": "not-tested"
+      },
+      {
+        "checksRun": [],
+        "findingIds": [],
+        "level": "AA",
+        "rationale": "resp.reflow-320 cover 1.4.10 but none of them ran on this scan, or none found anything to examine. Manual test: At a 320px viewport, confirm no horizontal scrolling is needed, and that anything that does scroll horizontally is genuinely exempt.",
+        "sc": "1.4.10",
+        "status": "not-tested"
+      },
+      {
+        "checksRun": [],
+        "findingIds": [],
+        "level": "AA",
+        "rationale": "ui.non-text-contrast cover 1.4.11 but none of them ran on this scan, or none found anything to examine. Manual test: Measure the boundary of each control against its surroundings, and each state indicator against the state it replaces.",
+        "sc": "1.4.11",
+        "status": "not-tested"
+      },
+      {
+        "checksRun": [],
+        "findingIds": [],
+        "level": "AA",
+        "rationale": "resp.text-spacing cover 1.4.12 but none of them ran on this scan, or none found anything to examine. Manual test: Apply the four spacing overrides via a user stylesheet and confirm nothing is clipped or overlapped.",
+        "sc": "1.4.12",
+        "status": "not-tested"
+      },
+      {
+        "checksRun": [],
+        "findingIds": [],
+        "level": "AA",
+        "rationale": "ui.hover-content cover 1.4.13 but none of them ran on this scan, or none found anything to examine. Manual test: Trigger each tooltip or popover, then try to move the pointer onto it, dismiss it with Escape, and leave it alone to see whether it times out.",
+        "sc": "1.4.13",
+        "status": "not-tested"
+      },
+      {
+        "checksRun": [],
+        "findingIds": [],
+        "level": "A",
+        "rationale": "kbd.walk, axe.scrollable-region-focusable, axe.frame-focusable-content cover 2.1.1 but none of them ran on this scan, or none found anything to examine. Manual test: Unplug the mouse and complete every task on the page. Anything you cannot reach or activate fails.",
+        "sc": "2.1.1",
+        "status": "not-tested"
+      },
+      {
+        "checksRun": [],
+        "findingIds": [],
+        "level": "A",
+        "rationale": "kbd.focus-trap cover 2.1.2 but none of them ran on this scan, or none found anything to examine. Manual test: Tab through the entire page, including every dialog and embedded component, and confirm you can always get back out.",
+        "sc": "2.1.2",
+        "status": "not-tested"
+      },
+      {
+        "checksRun": [],
+        "findingIds": [],
+        "level": "A",
+        "rationale": "kbd.single-key-shortcut cover 2.1.4 but none of them ran on this scan, or none found anything to examine. Manual test: Identify every single-character shortcut and confirm it can be disabled or remapped, or that it only fires when its component has focus.",
+        "sc": "2.1.4",
+        "status": "not-tested"
+      },
+      {
+        "checksRun": [],
+        "findingIds": [],
+        "level": "A",
+        "rationale": "time.limit-adjustable cover 2.2.1 but none of them ran on this scan, or none found anything to examine. Manual test: Find every time limit. Confirm each can be disabled, extended, or adjusted — and that the warning gives at least twenty seconds.",
+        "sc": "2.2.1",
+        "status": "not-tested"
+      },
+      {
+        "checksRun": [],
+        "findingIds": [],
+        "level": "A",
+        "rationale": "motion.auto-moving cover 2.2.2 but none of them ran on this scan, or none found anything to examine. Manual test: Watch the page for ten seconds without interacting. Anything still moving needs a reachable pause, stop or hide control.",
+        "sc": "2.2.2",
+        "status": "not-tested"
+      },
+      {
+        "checksRun": [],
+        "findingIds": [],
+        "level": "A",
+        "rationale": "No automated check covers 2.3.1 (human-only). Manual test: Analyse video and animation with a photosensitivity tool such as PEAT. Do not eyeball this one — the thresholds are quantitative and the cost of being wrong is a seizure.",
+        "sc": "2.3.1",
+        "status": "not-tested"
+      },
+      {
+        "checksRun": [
+          "axe.bypass"
+        ],
+        "findingIds": [],
+        "level": "A",
+        "rationale": "axe.bypass ran and reported no failures, but no automated check can decide 2.4.1 outright — a failure-detector's silence is not a pass. A human must confirm: Press Tab once on a fresh page load. Confirm a skip mechanism appears, works, and actually moves focus to the main content.",
+        "sc": "2.4.1",
+        "status": "not-tested"
+      },
+      {
+        "checksRun": [
+          "axe.document-title"
+        ],
+        "findingIds": [],
+        "level": "A",
+        "rationale": "axe.document-title ran and reported no failures, but no automated check can decide 2.4.2 outright — a failure-detector's silence is not a pass. A human must confirm: Read the title of each page out of context and ask whether it identifies that page uniquely.",
+        "sc": "2.4.2",
+        "status": "not-tested"
+      },
+      {
+        "checksRun": [
+          "kbd.walk"
+        ],
+        "findingIds": [
+          "find_10fb23a42e0d633a"
+        ],
+        "level": "A",
+        "rationale": "1 measured violation(s) against 2.4.3 Focus Order. A tab order that jumps around the page is disorienting for sighted keyboard users and incoherent for screen-reader users, who lose the relationship between a control and the content it belongs to.",
+        "sc": "2.4.3",
+        "status": "fail"
+      },
+      {
+        "checksRun": [
+          "axe.link-name"
+        ],
+        "findingIds": [],
+        "level": "A",
+        "rationale": "axe.link-name ran and reported no failures, but no automated check can decide 2.4.4 outright — a failure-detector's silence is not a pass. A human must confirm: List every link on the page with its accessible name and read the list on its own. Any entry whose destination you cannot guess fails.",
+        "sc": "2.4.4",
+        "status": "not-tested"
+      },
+      {
+        "checksRun": [],
+        "findingIds": [],
+        "level": "AA",
+        "rationale": "site.multiple-ways cover 2.4.5 but none of them ran on this scan, or none found anything to examine. Manual test: Confirm at least two of: site search, sitemap, navigation menu, or a table of contents — and that each genuinely reaches the pages.",
+        "sc": "2.4.5",
+        "status": "not-tested"
+      },
+      {
+        "checksRun": [],
+        "findingIds": [],
+        "level": "AA",
+        "rationale": "axe.empty-heading, ai.heading-quality cover 2.4.6 but none of them ran on this scan, or none found anything to examine. Manual test: Read the headings alone as an outline of the page, and each label alone as a description of its field. Both should make sense without the surrounding content.",
+        "sc": "2.4.6",
+        "status": "not-tested"
+      },
+      {
+        "checksRun": [
+          "kbd.focus-visible"
+        ],
+        "findingIds": [
+          "find_a55c62efeed03600"
+        ],
+        "level": "AA",
+        "rationale": "1 measured violation(s) against 2.4.7 Focus Visible. A sighted keyboard user who cannot see where focus is has to press keys and guess. This is the single most common real-world failure, usually introduced by a blanket `outline: none` in a reset stylesheet.",
+        "sc": "2.4.7",
+        "status": "fail"
+      },
+      {
+        "checksRun": [],
+        "findingIds": [],
+        "level": "AA",
+        "rationale": "kbd.focus-obscured cover 2.4.11 but none of them ran on this scan, or none found anything to examine. Manual test: Tab through the page at several scroll positions with any sticky or floating content present, and confirm the focused element is never fully hidden.",
+        "sc": "2.4.11",
+        "status": "not-tested"
+      },
+      {
+        "checksRun": [],
+        "findingIds": [],
+        "level": "A",
+        "rationale": "ptr.gesture-alternative cover 2.5.1 but none of them ran on this scan, or none found anything to examine. Manual test: For each gesture-driven feature, confirm a single tap or click alternative exists and is discoverable.",
+        "sc": "2.5.1",
+        "status": "not-tested"
+      },
+      {
+        "checksRun": [],
+        "findingIds": [],
+        "level": "A",
+        "rationale": "ptr.down-event cover 2.5.2 but none of them ran on this scan, or none found anything to examine. Manual test: Press down on a control, move away, and release. Nothing should have happened.",
+        "sc": "2.5.2",
+        "status": "not-tested"
+      },
+      {
+        "checksRun": [],
+        "findingIds": [],
+        "level": "A",
+        "rationale": "axe.label-content-name-mismatch cover 2.5.3 but none of them ran on this scan, or none found anything to examine. Manual test: For each labelled control, confirm the accessible name starts with or contains the visible text, in the same order.",
+        "sc": "2.5.3",
+        "status": "not-tested"
+      },
+      {
+        "checksRun": [],
+        "findingIds": [],
+        "level": "A",
+        "rationale": "ptr.motion-actuation cover 2.5.4 but none of them ran on this scan, or none found anything to examine. Manual test: Identify motion-triggered features and confirm each has a conventional control and can be turned off.",
+        "sc": "2.5.4",
+        "status": "not-tested"
+      },
+      {
+        "checksRun": [],
+        "findingIds": [],
+        "level": "AA",
+        "rationale": "ptr.dragging-alternative cover 2.5.7 but none of them ran on this scan, or none found anything to examine. Manual test: For each draggable interaction, confirm the same result can be achieved with discrete clicks or taps.",
+        "sc": "2.5.7",
+        "status": "not-tested"
+      },
+      {
+        "checksRun": [
+          "ptr.target-size"
+        ],
+        "findingIds": [
+          "find_cdee93d5e8b3f8b7"
+        ],
+        "level": "AA",
+        "rationale": "1 measured violation(s) against 2.5.8 Target Size (Minimum). Small targets are hard to hit with a tremor, a large fingertip, or a head pointer — and a mis-hit on a dense toolbar can trigger the wrong action rather than none.",
+        "sc": "2.5.8",
+        "status": "fail"
+      },
+      {
+        "checksRun": [
+          "axe.html-has-lang"
+        ],
+        "findingIds": [
+          "find_7505cf2089705d74"
+        ],
+        "level": "A",
+        "rationale": "1 measured violation(s) against 3.1.1 Language of Page. A screen reader picks its pronunciation rules from this attribute. Get it wrong and English is read with French phonetics — technically speech, practically noise. It is also the cheapest fix in the entire specification.",
+        "sc": "3.1.1",
+        "status": "fail"
+      },
+      {
+        "checksRun": [],
+        "findingIds": [],
+        "level": "AA",
+        "rationale": "ai.lang-of-parts cover 3.1.2 but none of them ran on this scan, or none found anything to examine. Manual test: Find passages in another language and confirm each carries a lang attribute, excluding proper nouns and naturalised terms.",
+        "sc": "3.1.2",
+        "status": "not-tested"
+      },
+      {
+        "checksRun": [],
+        "findingIds": [],
+        "level": "A",
+        "rationale": "kbd.focus-context-change cover 3.2.1 but none of them ran on this scan, or none found anything to examine. Manual test: Tab through every control without activating anything. Nothing should navigate, submit, or open.",
+        "sc": "3.2.1",
+        "status": "not-tested"
+      },
+      {
+        "checksRun": [],
+        "findingIds": [],
+        "level": "A",
+        "rationale": "form.input-context-change cover 3.2.2 but none of them ran on this scan, or none found anything to examine. Manual test: Change each control with the keyboard. Confirm nothing navigates or submits without an explicit action, or that a warning precedes it.",
+        "sc": "3.2.2",
+        "status": "not-tested"
+      },
+      {
+        "checksRun": [],
+        "findingIds": [],
+        "level": "AA",
+        "rationale": "Nothing this scan captured falls under 3.2.3. Re-check if the crawl missed part of the site.",
+        "sc": "3.2.3",
+        "status": "not-applicable"
+      },
+      {
+        "checksRun": [],
+        "findingIds": [],
+        "level": "AA",
+        "rationale": "Nothing this scan captured falls under 3.2.4. Re-check if the crawl missed part of the site.",
+        "sc": "3.2.4",
+        "status": "not-applicable"
+      },
+      {
+        "checksRun": [],
+        "findingIds": [],
+        "level": "A",
+        "rationale": "site.consistent-help cover 3.2.6 but none of them ran on this scan, or none found anything to examine. Manual test: Identify each help mechanism — contact details, chat, self-help — and confirm its position relative to other content is stable across pages.",
+        "sc": "3.2.6",
+        "status": "not-tested"
+      },
+      {
+        "checksRun": [],
+        "findingIds": [],
+        "level": "A",
+        "rationale": "form.error-identification, ai.error-messages cover 3.3.1 but none of them ran on this scan, or none found anything to examine. Manual test: Submit each form with deliberate errors and confirm each error is described in text and programmatically associated with its field.",
+        "sc": "3.3.1",
+        "status": "not-tested"
+      },
+      {
+        "checksRun": [
+          "axe.form-field-multiple-labels"
+        ],
+        "findingIds": [],
+        "level": "A",
+        "rationale": "axe.form-field-multiple-labels ran and reported no failures, but no automated check can decide 3.3.2 outright — a failure-detector's silence is not a pass. A human must confirm: Inspect each control's accessible name, and confirm format and requirement information is available before submission rather than after.",
+        "sc": "3.3.2",
+        "status": "not-tested"
+      },
+      {
+        "checksRun": [],
+        "findingIds": [],
+        "level": "AA",
+        "rationale": "ai.error-suggestion cover 3.3.3 but none of them ran on this scan, or none found anything to examine. Manual test: Trigger each validation error and confirm the message says how to fix it, not merely that something is wrong.",
+        "sc": "3.3.3",
+        "status": "not-tested"
+      },
+      {
+        "checksRun": [],
+        "findingIds": [],
+        "level": "AA",
+        "rationale": "No automated check covers 3.3.4 (human-only). Manual test: Identify every consequential action and confirm at least one of: it is reversible, the data is checked and errors are offered for correction, or a review-and-confirm step precedes it.",
+        "sc": "3.3.4",
+        "status": "not-tested"
+      },
+      {
+        "checksRun": [],
+        "findingIds": [],
+        "level": "A",
+        "rationale": "form.redundant-entry cover 3.3.7 but none of them ran on this scan, or none found anything to examine. Manual test: Walk through each multi-step process and note anything you are asked for twice. Confirm each repeat is auto-filled, selectable, or genuinely essential.",
+        "sc": "3.3.7",
+        "status": "not-tested"
+      },
+      {
+        "checksRun": [],
+        "findingIds": [],
+        "level": "AA",
+        "rationale": "form.paste-blocked cover 3.3.8 but none of them ran on this scan, or none found anything to examine. Manual test: Attempt to authenticate using a password manager. Confirm paste works, autofill works, and any puzzle step has an alternative.",
+        "sc": "3.3.8",
+        "status": "not-tested"
+      },
+      {
+        "checksRun": [
+          "axe.aria-allowed-attr",
+          "axe.aria-conditional-attr",
+          "axe.aria-hidden-body",
+          "axe.aria-prohibited-attr",
+          "axe.aria-valid-attr",
+          "axe.aria-valid-attr-value",
+          "axe.button-name",
+          "axe.duplicate-id-aria",
+          "axe.label",
+          "axe.link-name",
+          "axe.nested-interactive",
+          "axe.select-name"
+        ],
+        "findingIds": [],
+        "level": "A",
+        "rationale": "axe.aria-allowed-attr, axe.aria-conditional-attr, axe.aria-hidden-body, axe.aria-prohibited-attr, axe.aria-valid-attr-value, axe.aria-valid-attr, axe.button-name, axe.duplicate-id-aria, axe.label, axe.link-name, axe.nested-interactive, axe.select-name ran and reported no failures, but no automated check can decide 4.1.2 outright — a failure-detector's silence is not a pass. A human must confirm: Inspect each custom component in the accessibility tree. Confirm it has the right role, a meaningful name, and that its state updates in the tree as you operate it.",
+        "sc": "4.1.2",
+        "status": "not-tested"
+      },
+      {
+        "checksRun": [],
+        "findingIds": [],
+        "level": "AA",
+        "rationale": "aria.status-messages cover 4.1.3 but none of them ran on this scan, or none found anything to examine. Manual test: Trigger each status change with a screen reader running and confirm it is announced without focus moving. Check that live regions exist in the DOM before their content is inserted.",
+        "sc": "4.1.3",
+        "status": "not-tested"
+      }
+    ],
+    "scan": {
+      "costUsd": 0,
+      "counts": {
+        "candidatesRejected": 0,
+        "findingsLikely": 0,
+        "findingsNeedsReview": 1,
+        "findingsTotal": 7,
+        "findingsViolation": 6,
+        "pagesCaptured": 1,
+        "pagesDiscovered": 1,
+        "statesCaptured": 1
+      },
+      "createdAt": "<normalised>",
+      "degradations": [],
+      "finishedAt": "<normalised>",
+      "id": "<normalised>",
+      "options": {
+        "fix": false,
+        "mode": "deterministic",
+        "secondOpinion": false,
+        "wcagTarget": {
+          "level": "AA",
+          "version": "2.2"
+        }
+      },
+      "phase": "report",
+      "startedAt": "<normalised>",
+      "status": "completed",
+      "target": {
+        "budget": {
+          "maxDurationMs": 600000,
+          "maxModelTokens": 2000000,
+          "maxUsd": 1.5
+        },
+        "crawl": {
+          "exclude": [],
+          "include": [],
+          "maxDepth": 3,
+          "maxPages": 5,
+          "sameOriginOnly": true,
+          "templateDedupe": {
+            "enabled": true,
+            "perTemplate": 2
+          },
+          "useSitemap": true
+        },
+        "kind": "url",
+        "url": "http://127.0.0.1:5179/",
+        "viewports": [
+          {
+            "deviceScaleFactor": 1,
+            "height": 800,
+            "label": "desktop",
+            "width": 1280
+          }
+        ]
+      }
+    },
+    "tool": {
+      "name": "handrail",
+      "version": "0.0.0"
+    },
+    "trendScore": {
+      "disclaimer": "Trend indicator for tracking one codebase over time. Not an accessibility score, not a conformance claim, and not comparable between sites.",
+      "value": 32.3
+    }
+  }
+}

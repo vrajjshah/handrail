@@ -9,11 +9,21 @@ reality.
 
 ## Current state
 
-**Phase 0 complete. Phase 1 in progress** — 11 of 12 issues done. **Handrail
-scans a real site end to end and writes an evidence report.** Nothing in the
-tests or CI reaches a network — every call goes through an injectable transport.
+**Phase 1 complete except the cassette recording (#9).** **Handrail scans a real
+site end to end and writes an evidence report**, and a golden snapshot guards the
+whole pipeline against drift. Nothing in the tests or CI reaches a model provider
+— every call goes through an injectable transport.
 
 Landed:
+
+- Golden-scan snapshot (#13) — a full deterministic scan of the seeded-demo over
+  a real browser, normalised and diffed against
+  `fixtures/golden/seeded-demo.snapshot.json`. The only check that sees the whole
+  pipeline at once. Drilled by swapping two nodes: it fails with a line-numbered
+  diff naming the swapped phases. `golden-scan` is now a required status check.
+  Re-record intended changes with
+  `pnpm --filter @handrail/cli golden:scan --update` **in the same PR**, so the
+  diff is reviewed next to the change that caused it.
 
 - `apps/cli` + the report layer (#12) — `handrail scan <url>`, rendering the
   orchestrator's event stream as live progress. New `@handrail/engine` `report/`
@@ -113,7 +123,7 @@ Verified working: `pnpm install && pnpm test` green from a clean clone,
 
 ## Next up
 
-**The golden-scan snapshot (#13)** — the last Phase 1 issue. A full deterministic
+**Record the cassette corpus and close #9.** A full deterministic
 scan of the seeded-demo, normalised (timestamps, ids and paths stripped) into an
 event stream plus `report.json`, diffed against committed goldens. It catches
 orchestration and shape drift no unit test can see. **Add `golden-scan` to the
@@ -321,6 +331,13 @@ comparison scorecard wants a second rule engine.
   way *out* but the ledger records the **canonical** id (`claude-sonnet-5`, not
   `anthropic.claude-sonnet-5`), so pricing and `capabilityFor` stay provider-agnostic
   and a new model only needs registering under its canonical id. Don't fork the impl.
+- **The golden scan serves the fixture on a *fixed* port (5179), and it must
+  stay fixed.** The scanned URL is hashed into `pageStateId`, which is hashed
+  into every finding id, so `listen(0)` churns the entire snapshot on every run —
+  I hit exactly that. Normalising the port away would also erase those content
+  hashes, and they are worth diffing: a finding id changing means its check or
+  xpath changed. The normaliser also *replaces* volatile values rather than
+  deleting the keys, so a field vanishing from the report still shows as a diff.
 - **Provider SDK clients are constructed lazily, on first call — keep it that
   way.** `new Anthropic()` throws when `ANTHROPIC_API_KEY` is unset, and in
   `replay` mode the inner transport is never reached, so eager construction would
