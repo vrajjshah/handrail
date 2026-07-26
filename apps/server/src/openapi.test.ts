@@ -70,6 +70,7 @@ describe('the generated OpenAPI document', () => {
       '/api/meta',
       '/api/scans',
       '/api/scans/{id}',
+      '/api/scans/{id}/events',
       '/api/scans/{id}/report',
       '/api/scans/{id}/report.html',
       '/api/scans/{id}/report.sarif',

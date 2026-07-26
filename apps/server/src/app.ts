@@ -11,10 +11,12 @@ import {
 import type { Config } from './config.js';
 import { HttpError, ProblemSchema } from './http/problem.js';
 import { registerArtifactRoutes } from './routes/artifacts.js';
+import { registerEventRoutes } from './routes/events.js';
 import { registerMetaRoutes } from './routes/meta.js';
 import { registerReportRoutes } from './routes/reports.js';
 import { registerScanRoutes } from './routes/scans.js';
 import type { ArtifactReader, ScanStore } from './store/types.js';
+import type { ScanEventBus } from './events/bus.js';
 import type { ScanQueue } from './worker/queue.js';
 
 export interface ServerDeps {
@@ -32,6 +34,12 @@ export interface ServerDeps {
    * be the worst of the options.
    */
   queue?: ScanQueue;
+  /**
+   * How a live SSE stream learns that new events exist. Omit and a stream still
+   * works — it falls back to its own poll — but with seconds of latency rather
+   * than milliseconds.
+   */
+  eventBus?: ScanEventBus;
 }
 
 /**
@@ -143,6 +151,7 @@ export async function buildServer(deps: ServerDeps): Promise<FastifyInstance> {
   });
 
   await registerScanRoutes(app, deps);
+  await registerEventRoutes(app, deps);
   await registerReportRoutes(app, deps);
   await registerArtifactRoutes(app, deps);
   await registerMetaRoutes(app, deps);

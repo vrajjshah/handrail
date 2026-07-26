@@ -47,8 +47,11 @@ describe.skipIf(DATABASE_URL === undefined)('PgBossQueue', () => {
     const scanId = `scan_queue_${String(Date.now())}`;
     expect(await producer.publish({ scanId })).not.toBeNull();
 
-    await until(() => seen.length > 0);
-    expect(seen[0]?.scanId).toBe(scanId);
+    // Wait for *this* job rather than the first one to arrive. The queue is a
+    // real durable table, so a job left behind by an earlier run is still in it
+    // — and a test that assumed an empty queue would fail for a reason that has
+    // nothing to do with what it is testing.
+    await until(() => seen.some((payload) => payload.scanId === scanId));
   });
 
   it('refuses to enqueue the same scan twice', async () => {

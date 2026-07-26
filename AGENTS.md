@@ -20,6 +20,14 @@ reserved that slot for.
 
 Landed:
 
+- **The SSE stream with exact replay (#17).** `GET /api/scans/:id/events`, with
+  `ScanEvent.seq` as the SSE event id, so "what have I seen" is a number the
+  client hands back and "what am I owed" is a range query — no cursor, no
+  window, no approximation. Killing a client mid-scan and reconnecting replays
+  exactly the missed events, in order, tested **over a real socket** rather than
+  `inject()`. Live delivery is Postgres `LISTEN`/`NOTIFY` with a slow poll
+  underneath it as a floor; a 204 tells an `EventSource` to stop reconnecting to
+  a scan that has already ended.
 - **Persistence and the worker (#18).** Drizzle schema (scans, scan_events,
   findings, artifacts, eval_runs) with a **committed** migration applied as an
   explicit pre-start step, `PostgresScanStore` behind the same `ScanStore` port
@@ -183,9 +191,9 @@ Verified working: `pnpm install && pnpm test` green from a clean clone,
 
 ## Next up
 
-**Phase 2 — the hosted showcase.** #14, #15, #16 and #18 are done. Next in
-dependency order: #17 (SSE replay) → #19 (abuse controls) → #20
-(healthz/readyz), then #23 fills the shell with the scan flow.
+**Phase 2 — the hosted showcase.** #14, #15, #16, #17 and #18 are done. Next:
+#19 (abuse controls) → #20 (healthz/readyz), then #23 fills the shell with the
+scan flow.
 
 **Without `DATABASE_URL` the server is in-memory and says so.** No queue, so no
 scan ever runs; `main.ts` warns at boot rather than letting it look durable.
@@ -245,6 +253,30 @@ comparison scorecard wants a second rule engine.
 
 ## Known gotchas
 
+- **Subscribe before reading the backlog, never after.** Between an SSE
+  handler's backlog read and its subscription is exactly where an event is
+  written and never delivered — and the client then waits forever for a scan
+  that finished. The stream also needs its terminal check on *every* drain, not
+  just the first: the terminal event arrives either live on a notification or
+  already sitting in the backlog a reconnecting client was handed, and missing
+  either leaves a socket that will never speak again. Both of those were real
+  bugs here, caught by tests.
+- **The SSE stream's own `seq <= lastSent` guard masks a wrong range query.**
+  `events.test.ts` stays green if `eventsSince` replays one event too many,
+  because the stream de-duplicates downstream. The boundary is asserted
+  directly in `store.test.ts`; drilled by flipping `>` to `>=` and watching
+  which file goes red. Same shape as the `selectorOf` escaping trap — when a
+  defensive layer sits downstream of the thing under test, assert the property
+  where it lives.
+- **`reply.hijack()` is required before writing to `reply.raw`.** Without it
+  Fastify sends its own response on top of the stream. And `NOTIFY` carries the
+  scan id, never the event: a notification is a nudge answered by *reading*, so
+  a dropped one costs latency rather than data. Postgres `NOTIFY` is explicitly
+  not a queue.
+- **`LISTEN` needs its own connection, never a pooled one.** A pooled
+  connection goes back into rotation when its query finishes, so the
+  subscription silently belongs to whoever borrows it next. `PostgresEventBus`
+  holds a dedicated `Client` for listening and notifies through the pool.
 - **`singletonKey` alone does not deduplicate in pg-boss 12.** Under the default
   `standard` queue policy it is simply recorded, so two `send`s of the same key
   both enqueue and you have deduplication you can describe but do not have. The

@@ -12,6 +12,7 @@ import {
 import { and, asc, count, eq, gt, sql } from 'drizzle-orm';
 
 import type { Database } from '../db/client.js';
+import type { ScanEventBus } from '../events/bus.js';
 import { findings as findingsTable, scanEvents, scans } from '../db/schema.js';
 import {
   toEventValues,
@@ -36,11 +37,16 @@ export class PostgresScanStore implements ScanStore {
   private readonly db: Database;
   private readonly now: () => Date;
   private readonly newId: () => string;
+  private readonly bus: ScanEventBus | undefined;
 
-  constructor(db: Database, options: { now?: () => Date; newId?: () => string } = {}) {
+  constructor(
+    db: Database,
+    options: { now?: () => Date; newId?: () => string; bus?: ScanEventBus } = {},
+  ) {
     this.db = db;
     this.now = options.now ?? (() => new Date());
     this.newId = options.newId ?? (() => `scan_${randomUUID()}`);
+    this.bus = options.bus;
   }
 
   async create(input: CreateScanInput): Promise<ScanRecord> {
@@ -94,6 +100,11 @@ export class PostgresScanStore implements ScanStore {
       // re-writing one harmless rather than a crash. `seq` is the SSE id, so
       // the first write is the one that counts.
       .onConflictDoNothing({ target: [scanEvents.scanId, scanEvents.seq] });
+
+    // Announced from inside the append, after the rows are committed. A
+    // subscriber answers a notification by *reading*, so announcing before the
+    // write would make it read the range it is being told about too early.
+    await this.bus?.notify(id);
   }
 
   async eventsSince(id: ScanId, afterSeq: number): Promise<ScanEvent[]> {
