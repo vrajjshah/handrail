@@ -1,0 +1,39 @@
+{
+  "name": "@handrail/cli",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "handrail scan <url> — renders the orchestrator's event stream as live progress and writes the evidence report.",
+  "license": "MIT",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "publishConfig": {
+    "access": "public",
+    "main": "./dist/index.js",
+    "types": "./dist/index.d.ts",
+    "bin": {
+      "handrail": "./dist/main.js"
+    },
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      }
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "handrail": "tsx src/main.ts"
+  },
+  "dependencies": {
+    "@handrail/engine": "workspace:*",
+    "@handrail/model": "workspace:*",
+    "@handrail/orchestrator": "workspace:*",
+    "@handrail/schemas": "workspace:*",
+    "execa": "^9.6.0",
+    "zod": "^4.4.3"
+  }
+}

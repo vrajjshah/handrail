@@ -1,15 +1,26 @@
 import {
   allFindings,
+  attachScreenshotEvidence,
   buildHallucinationLedger,
+  buildReportFromScore,
+  buildScoreSummary,
+  checkRunFromAxePass,
+  checkRunFromHeuristic,
+  deriveApplicabilitySignals,
   runTextJudgment,
   writeHallucinationLedger,
+  type ArtifactStore,
+  type CheckRunSummary,
   type HallucinationEntry,
+  type ScoreSummary,
   type StateCapture,
 } from '@handrail/engine';
 import { ModelError, type CostLedger, type ModelClient } from '@handrail/model';
 import {
+  coverageHeadline,
   type Degradation,
   type Finding,
+  type Report,
   type ScanEvent,
   type ScanPhase,
   type ScanRecord,
@@ -34,6 +45,12 @@ export interface ScanGraphDeps {
   };
   /** Where `hallucination-ledger.json` is written. Omit to skip writing it. */
   outputDir?: string;
+  /**
+   * Where screenshots go. Omit and none are taken — a deterministic $0 scan on a
+   * CI runner usually should not, and the report says so rather than showing a
+   * broken image.
+   */
+  artifacts?: ArtifactStore;
 }
 
 /** The eight phases this graph runs, in order. Named for `ScanPhaseSchema`. */
@@ -137,7 +154,11 @@ export function createScanGraph(
     const captures: StateCapture[] = [];
     for (const url of state.urls) {
       for (const viewport of state.target.viewports) {
-        const captured = await deps.driver.capture({ url, viewport });
+        const captured = await deps.driver.capture({
+          url,
+          viewport,
+          ...(deps.artifacts === undefined ? {} : { artifacts: deps.artifacts }),
+        });
         captures.push(captured);
         if (captured.artifacts.fullPage !== null) {
           emitter.emit({
@@ -156,6 +177,7 @@ export function createScanGraph(
   const detect = phase('detect', async (state) => {
     const findings: Finding[] = [];
     const degradations: Degradation[] = [];
+    const checkRuns: CheckRunSummary[] = [];
     for (const captured of state.captures) {
       try {
         const axe = await deps.driver.axe(captured);
@@ -164,13 +186,22 @@ export function createScanGraph(
           findings.push(finding);
           emitter.emit({ type: 'finding.detected', finding });
         }
+        // Not findings — the raw material for an evidenced `pass`. A rule that
+        // ran clean and a rule that had nothing to examine look identical once
+        // you throw the candidate count away, so it is kept.
+        checkRuns.push(...axe.passes.map(checkRunFromAxePass));
+        checkRuns.push(...heuristics.outcomes.map(checkRunFromHeuristic));
       } finally {
         // axe runs *in* the page and the keyboard walk presses real Tab keys, so
         // the page stays open until both are done with it — then always closes.
         await deps.driver.release(captured);
       }
     }
-    return { findings: [...state.findings, ...findings], degradations: [...state.degradations, ...degradations] };
+    return {
+      findings: [...state.findings, ...findings],
+      degradations: [...state.degradations, ...degradations],
+      checkRuns: [...state.checkRuns, ...checkRuns],
+    };
   });
 
   const judgeText = phase('judge-text', async (state) => {
@@ -282,25 +313,40 @@ export function createScanGraph(
   });
 
   const score = phase('score', (state) => {
+    // The rollup, not a number: every criterion in the target level gets one
+    // outcome, `not-tested` included. Applicability signals come from the
+    // captures, so a criterion is only excused when something actually looked.
+    const summary = buildScoreSummary({
+      findings: state.findings,
+      checkRuns: state.checkRuns,
+      aiChecksRun: state.checksRun,
+      signals: deriveApplicabilitySignals(state.captures, state.urls.length),
+      level: state.options.wcagTarget.level,
+    });
+
+    emitter.emit({
+      type: 'log',
+      level: 'info',
+      message: coverageHeadline(summary.coverage),
+      phase: 'score',
+    });
+    return Promise.resolve({ scoreSummary: summary });
+  });
+
+  const report = phase('report', (state) => {
+    // The last thing that happens to a finding: give it a picture of the element
+    // it names, from the capture it already points at. It cannot change a tier —
+    // a screenshot is not deterministic evidence and the schema only downgrades.
+    const findings = attachScreenshotEvidence(state.findings, state.captures);
     emitter.emit({
       type: 'log',
       level: 'info',
       message:
-        `${String(state.findings.length)} finding(s) across ` +
-        `${String(state.captures.length)} state(s); ${String(state.checksRun.length)} AI check(s) ran`,
-      phase: 'score',
-    });
-    return Promise.resolve({});
-  });
-
-  const report = phase('report', (state) => {
-    emitter.emit({
-      type: 'log',
-      level: 'info',
-      message: 'report assembled',
+        `report assembled: ${String(findings.length)} finding(s) across ` +
+        `${String(state.captures.length)} captured state(s)`,
       phase: 'report',
     });
-    return Promise.resolve({ findings: state.findings });
+    return Promise.resolve({ findings });
   });
 
   const compiled = new StateGraph(ScanStateSchema)
@@ -335,10 +381,18 @@ export interface RunScanInput {
   options: ScanState['options'];
   /** Clock seam, so a golden-scan run is reproducible. */
   now?: () => Date;
+  /** Recorded in the report so an artifact can be traced to the code that made it. */
+  toolVersion?: string;
 }
 
 export interface ScanRunResult {
   record: ScanRecord;
+  /**
+   * The canonical artifact. `report.html`, SARIF and the PR summary are all
+   * rendered from this one object, so no surface can compute a friendlier
+   * number of its own.
+   */
+  report: Report;
   events: ScanEvent[];
   findings: Finding[];
   rejected: HallucinationEntry[];
@@ -358,6 +412,14 @@ export async function* streamScan(
   const now = input.now ?? (() => new Date());
   const emitter = new ScanEventEmitter({ scanId: input.scanId, ...(input.now ? { now } : {}) });
   const graph = createScanGraph(deps, emitter);
+
+  // The ledger records every model call; the emitter is the only thing allowed
+  // to mint a `seq`. This is where the two meet: an invocation recorded inside a
+  // node lands in that node's slice of the stream, success or failure, so the
+  // cost footer and the progress display read the same rows.
+  const unobserve = deps.model?.ledger.observe((invocation) => {
+    emitter.emit({ type: 'model.invoked', invocation });
+  });
 
   const createdAt = now().toISOString();
   const startedAtMs = Date.now();
@@ -395,10 +457,12 @@ export async function* streamScan(
     });
     collect(failure);
     yield failure;
+    unobserve?.();
     await deps.driver.dispose();
     throw error;
   }
 
+  unobserve?.();
   await deps.driver.dispose();
 
   const findings = final?.findings ?? [];
@@ -435,7 +499,26 @@ export async function* streamScan(
     finishedAt: now().toISOString(),
   });
 
-  return { record, events: emitted, findings, rejected: final?.rejected ?? [] };
+  // The score node did the scoring; the record could only be finished here,
+  // once the cost and the clock were final. Falling back to a fresh summary
+  // keeps a graph that failed before `score` from producing no report at all —
+  // an empty report that says "0 of 55 evaluated" is the honest artifact for
+  // that case, and a missing one is not.
+  const summary: ScoreSummary =
+    final?.scoreSummary ??
+    buildScoreSummary({ findings, level: input.options.wcagTarget.level });
+
+  const report = buildReportFromScore(
+    {
+      scan: record,
+      findings,
+      toolVersion: input.toolVersion ?? '0.0.0',
+      generatedAt: now(),
+    },
+    summary,
+  );
+
+  return { record, report, events: emitted, findings, rejected: final?.rejected ?? [] };
 }
 
 /** Collecting wrapper for callers that just want the result. */

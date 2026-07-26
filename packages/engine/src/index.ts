@@ -11,6 +11,7 @@
 export type { Browser, BrowserContext, Page } from 'playwright';
 
 export * from './capture/types.js';
+export * from './capture/browser.js';
 export * from './capture/state-capture.js';
 export * from './capture/artifacts.js';
 export * from './capture/signals.js';
@@ -43,6 +44,8 @@ export * from './verdict/verifier.js';
 export * from './verdict/ai-finding.js';
 export * from './verdict/hallucination-ledger.js';
 export * from './verdict/pipeline.js';
+
+export * from './report/index.js';
 
 export * from './detect/heuristics/types.js';
 export * from './detect/heuristics/run-heuristics.js';

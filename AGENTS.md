@@ -9,13 +9,21 @@ reality.
 
 ## Current state
 
-**Phase 0 complete. Phase 1 in progress** — 10 of 12 issues done. The engine can
-capture, detect **and judge**, and a graph now drives all of it end to end; the
-model seam has real providers, but nothing in the tests or CI reaches a network —
-every call goes through an injectable transport.
+**Phase 0 complete. Phase 1 in progress** — 11 of 12 issues done. **Handrail
+scans a real site end to end and writes an evidence report.** Nothing in the
+tests or CI reaches a network — every call goes through an injectable transport.
 
 Landed:
 
+- `apps/cli` + the report layer (#12) — `handrail scan <url>`, rendering the
+  orchestrator's event stream as live progress. New `@handrail/engine` `report/`
+  module: per-SC rollup (`fail > needs-review > pass > not-applicable >
+  not-tested`), the coverage ledger, and a **self-contained** `report.html`
+  (inline CSS, screenshots as `data:` URIs, bbox evidence overlays, source
+  badges, cost footer). Verified live against the seeded-demo: 7 findings,
+  schema-valid `report.json` with all 55 rollups, `$0.0000`, exit codes 0/1/2
+  (clean / scanner-failed / findings-at-threshold) — keeping "your site has
+  problems" distinct from "the scanner broke" is what makes it a usable CI gate.
 - `@handrail/orchestrator` LangGraph graph (#11) — eight nodes (crawl, capture,
   detect, judge-text, verdict, site, score, report) over Zod state, run **once**
   with `streamMode: ['custom','values']`: the custom stream carries `ScanEvent`s
@@ -105,12 +113,19 @@ Verified working: `pnpm install && pnpm test` green from a clean clone,
 
 ## Next up
 
-**The CLI (#12)**: `handrail scan <url> --mode hybrid --report html` with live
-progress. It consumes `streamScan` from `@handrail/orchestrator` — the event
-stream is already the product, so the CLI renders it rather than re-deriving
-anything. **#12 is also where the cassette corpus finally gets recorded**, since
-recording needs a real key against a real page, which closes #9's outstanding
-acceptance. Then the golden-scan snapshot (#13).
+**The golden-scan snapshot (#13)** — the last Phase 1 issue. A full deterministic
+scan of the seeded-demo, normalised (timestamps, ids and paths stripped) into an
+event stream plus `report.json`, diffed against committed goldens. It catches
+orchestration and shape drift no unit test can see. **Add `golden-scan` to the
+required status checks in the same PR that first makes it run** — requiring a
+check that never reports blocks every PR forever.
+
+**Then #9 finally closes.** Its acceptance ("full hybrid path green in CI with no
+API key") needs a recorded cassette corpus, and recording needs a real
+`ANTHROPIC_API_KEY` against a real page:
+`MODEL_MODE=record pnpm --filter @handrail/cli handrail scan <url> --mode hybrid`,
+then commit what lands in `cassettes/`. Nobody has run it yet — the machinery is
+done, the corpus is empty, and `findUncoveredRoles` will tell you so.
 
 **Still open, deliberately:**
 
@@ -306,6 +321,19 @@ comparison scorecard wants a second rule engine.
   way *out* but the ledger records the **canonical** id (`claude-sonnet-5`, not
   `anthropic.claude-sonnet-5`), so pricing and `capabilityFor` stay provider-agnostic
   and a new model only needs registering under its canonical id. Don't fork the impl.
+- **Provider SDK clients are constructed lazily, on first call — keep it that
+  way.** `new Anthropic()` throws when `ANTHROPIC_API_KEY` is unset, and in
+  `replay` mode the inner transport is never reached, so eager construction would
+  demand a key for a run that is deliberately offline. Laziness is what makes "no
+  credentials in CI" true rather than aspirational. `wrapTransport` exists for the
+  same reason: a surface can layer cassettes around a provider without taking its
+  own dependency on `@anthropic-ai/sdk` (the CLI does not have one — check before
+  adding).
+- **`CostLedger.observe()` is the seam between credentials and the event stream.**
+  Whoever owns the credentials constructs the ledger (the CLI), but only the
+  orchestrator may mint a `seq`, and it exists later. `observe()` lets it turn a
+  recorded invocation into a `model.invoked` event without the model package ever
+  learning what an event is. Don't "simplify" it back to a single `onInvocation`.
 - **Streaming the graph and then invoking it runs the whole scan twice.**
   `graph.stream(..., {streamMode:'custom'})` yields only what nodes write to
   `config.writer`, *not* the final state — so reaching for `graph.invoke()`

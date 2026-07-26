@@ -1,5 +1,10 @@
 import type { CheckId, Degradation, Finding, ScanOptions, ScanTarget } from '@handrail/schemas';
-import type { HallucinationEntry, StateCapture } from '@handrail/engine';
+import type {
+  CheckRunSummary,
+  HallucinationEntry,
+  ScoreSummary,
+  StateCapture,
+} from '@handrail/engine';
 import { z } from 'zod';
 
 /**
@@ -28,8 +33,26 @@ export const ScanStateSchema = z.object({
   /** Rejected AI candidates. Telemetry for the ledger — never findings. */
   rejected: z.custom<HallucinationEntry[]>().prefault([]),
   degradations: z.custom<Degradation[]>().prefault([]),
-  /** Which checks actually ran, so the scoring layer knows what silence means. */
+  /** Which AI checks actually ran, so the scoring layer knows what silence means. */
   checksRun: z.custom<CheckId[]>().prefault([]),
+  /**
+   * Every deterministic check that ran, with how many candidates it examined.
+   * This is what a `pass` is made of: without the candidate count, "no findings"
+   * and "nothing to look at" are indistinguishable, and only one of them is
+   * evidence.
+   */
+  checkRuns: z.custom<CheckRunSummary[]>().prefault([]),
+  /**
+   * Filled by the score node: the per-SC rollup, coverage ledger and trend
+   * indicator.
+   *
+   * Named `scoreSummary` rather than `score` because **LangGraph refuses a
+   * channel whose name collides with a node's** ("score is already being used as
+   * a state attribute … cannot also be used as a node name"), and the node is
+   * called `score` after the phase. The failure is loud and at compile time,
+   * but it is not obvious from either name.
+   */
+  scoreSummary: z.custom<ScoreSummary | undefined>().optional(),
   /**
    * Every candidate the judge raised, before any stage rejected one. The
    * denominator of the hallucination ledger: "12 rejected" means nothing without

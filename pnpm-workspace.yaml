@@ -6,3 +6,14 @@ packages:
 allowBuilds:
   esbuild: true
   lefthook: true
+
+# `pnpm audit --audit-level high` is a required check, so a high advisory against
+# a transitive dev dependency blocks every PR until it is dealt with.
+# GHSA-mh99-v99m-4gvg (brace-expansion DoS) reaches us only through eslint's
+# minimatch; eslint has not yet shipped a release that bumps it, so we pin the
+# fixed version ourselves rather than turn the gate down.
+# NOTE: overrides live here, not in package.json — pnpm 11 stopped reading the
+# `pnpm` field there and ignores it *with only a warning*, so a misplaced
+# override looks applied and silently is not.
+overrides:
+  brace-expansion@<5.0.8: ">=5.0.8"
