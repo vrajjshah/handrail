@@ -29,6 +29,19 @@ const PLACEHOLDER = '<normalised>';
 /** Keys whose value is a filesystem path — absolute, therefore machine-specific. */
 const PATH_KEYS = new Set(['path', 'outputDir', 'reportPath', 'artifactDir']);
 
+/**
+ * Geometry inside a `bbox`, which is host-specific.
+ *
+ * Chromium lays text out using the host's font rasterisation, so the same page
+ * measures a pixel or two differently on macOS and on the Linux CI runner —
+ * observed as `height: 19` vs `17`, `width: 54.73` vs `49.77`. Asserting these
+ * would make this gate a font-version detector rather than a drift detector, and
+ * would force every re-record onto Linux even though the developer works on a
+ * Mac. The `bbox` key itself is kept, so a bounding box *disappearing* still
+ * shows up as a diff — it is the coordinates, not the presence, that are noise.
+ */
+const BBOX_GEOMETRY_KEYS = new Set(['x', 'y', 'width', 'height']);
+
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
@@ -56,6 +69,8 @@ function normalizeValue(value: unknown, key: string, parentKey: string): unknown
   if (typeof value !== 'string' && typeof value !== 'number') return value;
 
   if (VOLATILE_KEYS.has(key)) return PLACEHOLDER;
+
+  if (parentKey === 'bbox' && BBOX_GEOMETRY_KEYS.has(key)) return PLACEHOLDER;
 
   // A finding's `id` is a sha256 of (pageStateId, checkId, xpath) — stable, and
   // worth diffing. A scan's is a per-run uuid. Same key, opposite meaning.

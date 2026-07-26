@@ -132,3 +132,35 @@ describe('buildSnapshot', () => {
     expect(snapshot.report).toBeDefined();
   });
 });
+
+describe('host-specific geometry', () => {
+  it('scrubs bbox coordinates, which differ between macOS and the Linux runner', () => {
+    const out = normalizeReport({
+      findings: [{ element: { bbox: { x: 995.265625, y: 55, width: 54.734375, height: 19 } } }],
+    } as unknown as Report) as { findings: { element: { bbox: Record<string, unknown> } }[] };
+
+    expect(out.findings[0]?.element.bbox).toEqual({
+      x: '<normalised>',
+      y: '<normalised>',
+      width: '<normalised>',
+      height: '<normalised>',
+    });
+  });
+
+  it('still notices a bbox disappearing — only the coordinates are noise', () => {
+    const withBox = JSON.stringify(
+      normalizeReport({ findings: [{ element: { bbox: { x: 1, y: 2 } } }] } as unknown as Report),
+    );
+    const withoutBox = JSON.stringify(
+      normalizeReport({ findings: [{ element: {} }] } as unknown as Report),
+    );
+    expect(withBox).not.toBe(withoutBox);
+  });
+
+  it('leaves the viewport alone — that is configuration, not rendering', () => {
+    const out = normalizeReport({
+      scan: { viewport: { width: 1280, height: 800 } },
+    } as unknown as Report) as { scan: { viewport: Record<string, unknown> } };
+    expect(out.scan.viewport).toEqual({ width: 1280, height: 800 });
+  });
+});

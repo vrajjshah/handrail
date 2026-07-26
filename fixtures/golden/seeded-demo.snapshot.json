@@ -204,10 +204,10 @@
         "element": {
           "accessibleName": "",
           "bbox": {
-            "height": 25.59375,
-            "width": 778,
-            "x": 251,
-            "y": 751.5
+            "height": "<normalised>",
+            "width": "<normalised>",
+            "x": "<normalised>",
+            "y": "<normalised>"
           },
           "domExcerpt": "<p class=\"muted-note\" data-gt=\"gt-004\">Seatings are released on the first Monday of each month and tend to go within the hour.</p>",
           "elementId": "e23",
@@ -263,10 +263,10 @@
         "element": {
           "accessibleName": "",
           "bbox": {
-            "height": 2717.578125,
-            "width": 1280,
-            "x": 0,
-            "y": 0
+            "height": "<normalised>",
+            "width": "<normalised>",
+            "x": "<normalised>",
+            "y": "<normalised>"
           },
           "domExcerpt": "<html>",
           "elementId": "e0",
@@ -315,10 +315,10 @@
         "element": {
           "accessibleName": "",
           "bbox": {
-            "height": 162.5,
-            "width": 260,
-            "x": 251,
-            "y": 964.0625
+            "height": "<normalised>",
+            "width": "<normalised>",
+            "x": "<normalised>",
+            "y": "<normalised>"
           },
           "domExcerpt": "<img data-gt=\"gt-002\" width=\"260\" height=\"163\" src=\"/images/dinner-table.svg\">",
           "elementId": "e28",
@@ -367,10 +367,10 @@
         "element": {
           "accessibleName": "Add Domaine Perrot to my list",
           "bbox": {
-            "height": 24,
-            "width": 24,
-            "x": 269,
-            "y": 1759.828125
+            "height": "<normalised>",
+            "width": "<normalised>",
+            "x": "<normalised>",
+            "y": "<normalised>"
           },
           "domExcerpt": "<button type=\"button\" class=\"icon-button--ok\" aria-label=\"Add Domaine Perrot to my list\">Add</button>",
           "elementId": "e61",
@@ -426,10 +426,10 @@
         "element": {
           "accessibleName": "Contact",
           "bbox": {
-            "height": 19,
-            "width": 54.734375,
-            "x": 995.265625,
-            "y": 55
+            "height": "<normalised>",
+            "width": "<normalised>",
+            "x": "<normalised>",
+            "y": "<normalised>"
           },
           "elementId": "e18",
           "role": "link",
@@ -476,10 +476,10 @@
         "element": {
           "accessibleName": "Join the list",
           "bbox": {
-            "height": 49.59375,
-            "width": 127.046875,
-            "x": 251,
-            "y": 2440.390625
+            "height": "<normalised>",
+            "width": "<normalised>",
+            "x": "<normalised>",
+            "y": "<normalised>"
           },
           "elementId": "e83",
           "role": "button",
@@ -533,10 +533,10 @@
         "element": {
           "accessibleName": "One more bottle of Domaine Perrot",
           "bbox": {
-            "height": 18,
-            "width": 18,
-            "x": 251,
-            "y": 1759.828125
+            "height": "<normalised>",
+            "width": "<normalised>",
+            "x": "<normalised>",
+            "y": "<normalised>"
           },
           "elementId": "e60",
           "role": "button",
