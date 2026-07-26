@@ -9,12 +9,19 @@ reality.
 
 ## Current state
 
-**Phase 1 complete except the cassette recording (#9).** **Handrail scans a real
-site end to end and writes an evidence report**, and a golden snapshot guards the
-whole pipeline against drift. Nothing in the tests or CI reaches a model provider
-— every call goes through an injectable transport.
+**Phase 1 complete — all 12 issues.** **Handrail scans a real site end to end and
+writes an evidence report**, a golden snapshot guards the pipeline against drift,
+and the hybrid path replays real recorded model responses in CI with no
+credentials. Nothing in the tests or CI reaches a model provider.
 
 Landed:
+
+- Cassette corpus recorded, closing #9 — the hybrid path now runs against a
+  **real** Bedrock/Haiku response in CI with no API key. Recording immediately
+  paid for itself: it exposed that Bedrock **rejects `output_config.format`**
+  outright, so structured output there goes via a forced tool call with thinking
+  disabled (measured against a live endpoint, encoded in the capability map). It
+  also exposed a recall hole the synthetic backend could never show — see #69.
 
 - Golden-scan snapshot (#13) — a full deterministic scan of the seeded-demo over
   a real browser, normalised and diffed against
@@ -123,7 +130,16 @@ Verified working: `pnpm install && pnpm test` green from a clean clone,
 
 ## Next up
 
-**Record the cassette corpus and close #9.** A full deterministic
+**Phase 2 — the hosted showcase.** Start with `docs/DESIGN.md` + Tailwind tokens
+(#14), which the plan makes the first slice, before any component exists.
+
+**Carry into Phase 3: [#69](https://github.com/vrajjshah/handrail/issues/69) — the
+text-judge prompt grounds at 0% against a real model.** Every candidate the real
+model raised cited an attribute the element does not carry, so grounding rejected
+all of them and the page yielded no AI findings. The trust core was right; recall
+is the problem, and it belongs to the prompt.
+
+**Superseded note (kept for context):** A full deterministic
 scan of the seeded-demo, normalised (timestamps, ids and paths stripped) into an
 event stream plus `report.json`, diffed against committed goldens. It catches
 orchestration and shape drift no unit test can see. **Add `golden-scan` to the
@@ -331,6 +347,20 @@ comparison scorecard wants a second rule engine.
   way *out* but the ledger records the **canonical** id (`claude-sonnet-5`, not
   `anthropic.claude-sonnet-5`), so pricing and `capabilityFor` stay provider-agnostic
   and a new model only needs registering under its canonical id. Don't fork the impl.
+- **Bedrock rejects `output_config.format` — structured output there is a forced
+  tool call.** `output_config.format: Extra inputs are not permitted`, measured
+  against a live endpoint (a compatibility table said otherwise; the endpoint is
+  the authority). The seam offers the schema as a single tool, forces
+  `tool_choice`, and disables thinking — which is what the capability map's
+  `forcedToolChoiceRequiresThinkingDisabled` flag was always pointing at. The
+  result arrives already decoded as `tool_use.input`, and is *still* validated:
+  "the model called the tool" is not "the model filled it in correctly".
+- **A synthetic model backend cannot tell you your prompt is broken.** #10's
+  suite shows three findings at `likely` using scripted candidates that ground by
+  construction. The first real recorded response raised three candidates and had
+  **all three rejected at grounding** — 0 AI findings on that page (#69). Treat
+  `local-deterministic` as proof the plumbing works and nothing more; only the
+  cassette corpus speaks to whether the prompts actually work.
 - **The golden scan serves the fixture on a *fixed* port (5179), and it must
   stay fixed.** The scanned URL is hashed into `pageStateId`, which is hashed
   into every finding id, so `listen(0)` churns the entire snapshot on every run —
