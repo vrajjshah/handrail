@@ -16,6 +16,20 @@ credentials. Nothing in the tests or CI reaches a model provider.
 
 Landed:
 
+- **Phase 1 audited against the plan's own acceptance, and two gaps closed** that
+  the issue checkboxes had hidden: the CLI had never actually scanned a public
+  site, and no recall baseline existed. Both done — see below.
+- Recall baseline (`fixtures/golden/seeded-demo.recall.json`) — **7/14 (50%)**
+  overall against the planted ground truth, **zero traps flagged**. Broken down
+  by the layer meant to catch each defect: deterministic 2/3, heuristic 3/5,
+  ai-text 2/3, **ai-vision 0/3** (the vision judge is Phase 3 and does not exist
+  — reported as 0 rather than dropped from the denominator). Checked in CI, so a
+  drop is a regression and a rise must still be recorded deliberately.
+- `#69` fixed — grounding now resolves a cited name against `tag` / `text` /
+  `role` / `accessibleName` as well as real attributes. The real model was being
+  rejected for telling the truth: it cited `text = "Click here"` on an element
+  whose snapshot text is exactly that. Recall on that page went 0 → 2 findings at
+  `likely` (gt-006 and gt-013), verifier-confirmed.
 - Cassette corpus recorded, closing #9 — the hybrid path now runs against a
   **real** Bedrock/Haiku response in CI with no API key. Recording immediately
   paid for itself: it exposed that Bedrock **rejects `output_config.format`**
@@ -133,11 +147,11 @@ Verified working: `pnpm install && pnpm test` green from a clean clone,
 **Phase 2 — the hosted showcase.** Start with `docs/DESIGN.md` + Tailwind tokens
 (#14), which the plan makes the first slice, before any component exists.
 
-**Carry into Phase 3: [#69](https://github.com/vrajjshah/handrail/issues/69) — the
-text-judge prompt grounds at 0% against a real model.** Every candidate the real
-model raised cited an attribute the element does not carry, so grounding rejected
-all of them and the page yielded no AI findings. The trust core was right; recall
-is the problem, and it belongs to the prompt.
+**Phase 1 is genuinely done** — audited against the plan's acceptance row and
+§Verification per phase, not just the issue list. All twelve issues closed, three
+public sites scanned into schema-valid reports, deterministic mode $0 offline,
+golden snapshot and cassettes both running in CI with no API key, recall baseline
+committed.
 
 **Superseded note (kept for context):** A full deterministic
 scan of the seeded-demo, normalised (timestamps, ids and paths stripped) into an
