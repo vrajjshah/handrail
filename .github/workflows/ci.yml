@@ -72,6 +72,10 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
+      # The web app is a Vite bundle, not a tsc `dist`, so `pnpm build` does not
+      # cover it. A CSS or bundler failure that typecheck cannot see would
+      # otherwise only surface at deploy time.
+      - run: pnpm --filter @handrail/web build
       # Two patterns, because the first one alone missed a real leak for weeks:
       # `serve-fixture.ts` lived in a nested `__test__/` folder and is not named
       # `*.test.*`, so it compiled into `dist/` while this check stayed green.

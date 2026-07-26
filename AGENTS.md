@@ -20,6 +20,14 @@ reserved that slot for.
 
 Landed:
 
+- `apps/web` shell on React Aria Components (#15) — skip link, banner, named
+  `Main` nav, `<main tabindex="-1">`, inverse footer, and a three-state
+  System/Light/Dark theme control applied before first paint. **Handrail scans
+  its own shell: 0 findings across desktop, mobile and reflow-320**, with
+  `kbd.walk` (9 stops), `kbd.focus-visible` (9), `ptr.target-size` (11) and
+  `resp.reflow-320` all pass-*verified*, not merely silent. Two real defects
+  were found on the way, one by our own scanner and one only by tabbing — both
+  in gotchas below.
 - `@handrail/tokens` + `docs/DESIGN.md` (#14) — the design system as *measured*
   values. 44 colour-role pairs × 2 themes = **88 contrast pairs, all passing**,
   computed with the same WCAG relative-luminance arithmetic the engine applies to
@@ -158,10 +166,11 @@ Verified working: `pnpm install && pnpm test` green from a clean clone,
 
 ## Next up
 
-**Phase 2 — the hosted showcase.** #14 is done, so the design system exists.
-Next is `apps/web`'s shell on React Aria Components (#15), and then the server
-chain in dependency order: #16 (Fastify + Zod + OpenAPI) → #18 (Drizzle +
-pg-boss) → #17 (SSE replay) → #19 (abuse controls) → #20 (healthz/readyz).
+**Phase 2 — the hosted showcase.** #14 and #15 are done: the design system
+exists and the shell stands on it. Next is the server chain in dependency
+order — #16 (Fastify + Zod + OpenAPI) → #18 (Drizzle + pg-boss) → #17 (SSE
+replay) → #19 (abuse controls) → #20 (healthz/readyz) — then #23 fills the
+shell with the scan flow.
 
 **Phase 1 is genuinely done** — audited against the plan's acceptance row and
 §Verification per phase, not just the issue list. All twelve issues closed, three
@@ -217,6 +226,24 @@ comparison scorecard wants a second rule engine.
 
 ## Known gotchas
 
+- **`kbd.focus-visible` cannot see that the focused element is invisible — our
+  own UI proved it.** React Aria puts DOM focus on a *visually hidden* input for
+  radios, checkboxes and switches and marks the rendered element with
+  `data-focus-visible`. The global `:focus-visible` ring therefore landed on an
+  element clipped to a 1px box: **no visible focus indicator on the theme
+  control, and our own check passed it**, because the style delta on
+  `document.activeElement` is real. Caught by tabbing through the page, which is
+  why DESIGN.md §11 makes the manual walk a step and not a nicety. The app-side
+  fix is a `[data-focus-visible]` rule in `apps/web/src/styles/app.css`. The
+  engine-side gap — a focus target that is clipped, `visibility: hidden` or
+  zero-area should not count as focus-visible evidence — is filed as its own
+  issue.
+- **`sr-only` plus a padding utility is a pointer target.** Tailwind's `sr-only`
+  sets `padding: 0` alongside its 1px box, so an unconditional `px-4 py-2` on
+  the skip link inflated the hidden element to 32×16 — and `ptr.target-size`
+  flagged it as a real 2.5.8 violation the moment the stacked header put another
+  target beside it. Put *every* visual style behind `focus:`, padding included.
+  This one our own scanner caught, which is the loop working.
 - **Contrast ratio cannot tell you two colours look alike.** It is a luminance
   relationship between a foreground and *its background*, so two foregrounds can
   each clear 4.5:1 against the page and measure **1.09:1 against each other** —
@@ -237,6 +264,18 @@ comparison scorecard wants a second rule engine.
   against every button fill. Switching to `box-shadow` would also break
   forced-colors mode, where a focus indicator matters most; `css.test.ts`
   asserts the string `box-shadow` never appears.
+- **`apps/web` is the one package that deviates from `tsconfig.base`.** Vite
+  owns resolution there, so it sets `module: preserve` + `moduleResolution:
+  bundler` + `jsx: react-jsx`; `NodeNext` rejects the extensionless imports Vite
+  expects and refuses the `.css` side-effect import outright. It is also **not**
+  in `tsconfig.build.json` — its artifact is a Vite bundle, not a tsc `dist`, so
+  CI runs `pnpm --filter @handrail/web build` as a separate step.
+- **eslint-plugin-react-hooks: use `configs.flat[...]`, not `configs[...]`.**
+  The top-level entries are still the eslintrc shape and hand ESLint 10 a
+  `plugins` **array**, which it rejects with a migration message rather than a
+  useful error. Also: `react-hooks/set-state-in-effect` correctly rejects
+  reading `localStorage` into state from an effect — use a lazy `useState`
+  initialiser, which is also one fewer frame of the wrong value.
 - **A byte-exact comparison against a committed text file fails on Windows
   without `.gitattributes`.** The Windows runner checks out CRLF, so
   `readFile(theme.css) === renderThemeCss()` compares identical content and

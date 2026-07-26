@@ -6,6 +6,12 @@
       "runtimeExecutable": "pnpm",
       "runtimeArgs": ["--filter", "@handrail/fixture-seeded-demo", "dev"],
       "port": 5178
+    },
+    {
+      "name": "web",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--filter", "@handrail/web", "dev"],
+      "port": 5180
     }
   ]
 }

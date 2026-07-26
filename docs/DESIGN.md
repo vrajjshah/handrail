@@ -237,6 +237,12 @@ red test — not a judgement call.
 - **The offset is load-bearing.** It makes the ring sit on the surface behind
   the control, so the ring only has to contrast with the page — not with every
   button fill. That is why §5 measures `focus-ring` against surfaces only.
+- **React Aria puts DOM focus on a visually hidden input** for radios,
+  checkboxes and switches, and marks the element you can actually see with
+  `data-focus-visible`. `:focus-visible` alone therefore draws the ring on
+  something clipped to a 1px box. `apps/web/src/styles/app.css` carries the same
+  ring on `[data-focus-visible]` for that reason — once, globally, so no
+  component has to remember. This was caught by tabbing, not by a test.
 - On `[data-surface="inverse"]` the value flips to `--color-focus-ring-inverse`.
 - Under forced colors the ring becomes `Highlight` and stops fighting the user's
   own palette.
@@ -287,6 +293,11 @@ is a regression waiting to be found by a reviewer.
 Sections that a reader would navigate to get `<section aria-labelledby="…">`
 pointing at their own heading. A `<section>` without an accessible name is a
 `<div>`; use the `<div>`.
+
+**Any list styled without markers carries `role="list"`.** Tailwind's reset
+applies `list-style: none`, and Safari drops list semantics entirely when it
+sees that — VoiceOver stops announcing "list, 3 items", which is the one thing a
+navigation list exists to convey.
 
 ### 7.2 Headings
 
