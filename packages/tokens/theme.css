@@ -1,0 +1,248 @@
+/*
+ * GENERATED FILE — do not edit.
+ *
+ * Source of truth: packages/tokens/src/{tokens,scale}.ts
+ * Regenerate:      pnpm --filter @handrail/tokens tokens:build
+ *
+ * Every colour pair this file can produce is contrast-checked in
+ * contrast.test.ts and the measured ratios are recorded in docs/DESIGN.md.
+ */
+
+@theme {
+  /* Colours — light is the default value table. */
+  --color-surface: #ffffff;
+  --color-surface-raised: #f6f8fa;
+  --color-surface-sunken: #eceff3;
+  --color-surface-inverse: #111b24;
+  --color-text: #101720;
+  --color-text-muted: #54606e;
+  --color-text-inverse: #f4f7fa;
+  --color-border: #858f9c;
+  --color-border-strong: #616d7b;
+  --color-accent: #0b5560;
+  --color-accent-hover: #083f47;
+  --color-accent-text: #0b5560;
+  --color-on-accent: #ffffff;
+  --color-focus-ring: #0b1220;
+  --color-focus-ring-inverse: #f4f7fa;
+  --color-violation: #a11a13;
+  --color-violation-surface: #fdeceb;
+  --color-violation-border: #c65c55;
+  --color-likely: #7a5406;
+  --color-likely-surface: #fdf3e6;
+  --color-likely-border: #a37519;
+  --color-review: #1b4f9b;
+  --color-review-surface: #eaf1fc;
+  --color-review-border: #5a86c4;
+  --color-pass: #146239;
+  --color-pass-surface: #e7f4ec;
+  --color-pass-border: #4e9268;
+  --color-ai: #6b2fb5;
+  --color-ai-surface: #f3ecfc;
+  --color-ai-border: #9268cc;
+
+  /* Spacing. */
+  --spacing-0: 0rem;
+  --spacing-1: 0.25rem;
+  --spacing-2: 0.5rem;
+  --spacing-3: 0.75rem;
+  --spacing-4: 1rem;
+  --spacing-6: 1.5rem;
+  --spacing-8: 2rem;
+  --spacing-12: 3rem;
+  --spacing-16: 4rem;
+  --spacing-px: 0.0625rem;
+
+  /* Type. Every step is rem, so 200% zoom and a raised base font both work. */
+  --text-display: 2.25rem;
+  --text-display--line-height: 1.15;
+  --text-title: 1.75rem;
+  --text-title--line-height: 1.2;
+  --text-heading: 1.375rem;
+  --text-heading--line-height: 1.3;
+  --text-subheading: 1.125rem;
+  --text-subheading--line-height: 1.4;
+  --text-body: 1rem;
+  --text-body--line-height: 1.55;
+  --text-small: 0.875rem;
+  --text-small--line-height: 1.5;
+  --text-code: 0.9375rem;
+  --text-code--line-height: 1.6;
+
+  /* Radius. */
+  --radius-none: 0rem;
+  --radius-sm: 0.25rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-full: 9999px;
+
+  /* Breakpoints. 320px is a floor to survive, not a breakpoint to design at. */
+  --breakpoint-sm: 30rem;
+  --breakpoint-md: 48rem;
+  --breakpoint-lg: 64rem;
+  --breakpoint-xl: 80rem;
+
+  /* Motion. Suppressed wholesale under prefers-reduced-motion, below. */
+  --duration-fast: 120ms;
+  --duration-normal: 200ms;
+  --duration-slow: 320ms;
+
+  /* Interactive sizing and the focus ring. */
+  --size-target-min: 24px;
+  --size-target-comfortable: 44px;
+  --focus-ring-width: 3px;
+  --focus-ring-offset: 2px;
+}
+
+/*
+ * `dark:` follows the explicit choice, not the OS, because the app has a theme
+ * control and a control that some utilities ignore is worse than no control.
+ */
+@custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
+
+/* No stored choice: follow the OS. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --color-surface: #0e141b;
+    --color-surface-raised: #161e27;
+    --color-surface-sunken: #080c11;
+    --color-surface-inverse: #e9eef4;
+    --color-text: #e9eef4;
+    --color-text-muted: #a0adbc;
+    --color-text-inverse: #101720;
+    --color-border: #626e7c;
+    --color-border-strong: #8e9aa8;
+    --color-accent: #5bc6cf;
+    --color-accent-hover: #8adae0;
+    --color-accent-text: #5bc6cf;
+    --color-on-accent: #062026;
+    --color-focus-ring: #f4f7fa;
+    --color-focus-ring-inverse: #0b1220;
+    --color-violation: #ff9b91;
+    --color-violation-surface: #2c1513;
+    --color-violation-border: #a2504a;
+    --color-likely: #f0c069;
+    --color-likely-surface: #2a2010;
+    --color-likely-border: #977629;
+    --color-review: #8fb6f0;
+    --color-review-surface: #131f31;
+    --color-review-border: #4a6d9e;
+    --color-pass: #6ec994;
+    --color-pass-surface: #0f2418;
+    --color-pass-border: #3f7d5b;
+    --color-ai: #c3a2f0;
+    --color-ai-surface: #1e1630;
+    --color-ai-border: #7b62a8;
+  }
+}
+
+/* A stored choice wins over the OS, in both directions. */
+[data-theme='dark'] {
+  --color-surface: #0e141b;
+  --color-surface-raised: #161e27;
+  --color-surface-sunken: #080c11;
+  --color-surface-inverse: #e9eef4;
+  --color-text: #e9eef4;
+  --color-text-muted: #a0adbc;
+  --color-text-inverse: #101720;
+  --color-border: #626e7c;
+  --color-border-strong: #8e9aa8;
+  --color-accent: #5bc6cf;
+  --color-accent-hover: #8adae0;
+  --color-accent-text: #5bc6cf;
+  --color-on-accent: #062026;
+  --color-focus-ring: #f4f7fa;
+  --color-focus-ring-inverse: #0b1220;
+  --color-violation: #ff9b91;
+  --color-violation-surface: #2c1513;
+  --color-violation-border: #a2504a;
+  --color-likely: #f0c069;
+  --color-likely-surface: #2a2010;
+  --color-likely-border: #977629;
+  --color-review: #8fb6f0;
+  --color-review-surface: #131f31;
+  --color-review-border: #4a6d9e;
+  --color-pass: #6ec994;
+  --color-pass-surface: #0f2418;
+  --color-pass-border: #3f7d5b;
+  --color-ai: #c3a2f0;
+  --color-ai-surface: #1e1630;
+  --color-ai-border: #7b62a8;
+}
+
+[data-theme='light'] {
+  --color-surface: #ffffff;
+  --color-surface-raised: #f6f8fa;
+  --color-surface-sunken: #eceff3;
+  --color-surface-inverse: #111b24;
+  --color-text: #101720;
+  --color-text-muted: #54606e;
+  --color-text-inverse: #f4f7fa;
+  --color-border: #858f9c;
+  --color-border-strong: #616d7b;
+  --color-accent: #0b5560;
+  --color-accent-hover: #083f47;
+  --color-accent-text: #0b5560;
+  --color-on-accent: #ffffff;
+  --color-focus-ring: #0b1220;
+  --color-focus-ring-inverse: #f4f7fa;
+  --color-violation: #a11a13;
+  --color-violation-surface: #fdeceb;
+  --color-violation-border: #c65c55;
+  --color-likely: #7a5406;
+  --color-likely-surface: #fdf3e6;
+  --color-likely-border: #a37519;
+  --color-review: #1b4f9b;
+  --color-review-surface: #eaf1fc;
+  --color-review-border: #5a86c4;
+  --color-pass: #146239;
+  --color-pass-surface: #e7f4ec;
+  --color-pass-border: #4e9268;
+  --color-ai: #6b2fb5;
+  --color-ai-surface: #f3ecfc;
+  --color-ai-border: #9268cc;
+}
+
+@layer base {
+  /*
+   * The focus ring is defined once, here, for every focusable thing. A
+   * component cannot forget it and a component cannot remove it: 2.4.7 is not
+   * a per-screen decision.
+   */
+  :focus-visible {
+    outline: var(--focus-ring-width) solid var(--color-focus-ring);
+    outline-offset: var(--focus-ring-offset);
+  }
+
+  /* On the inverse footer the same ring would vanish, so the value flips. */
+  [data-surface="inverse"] :focus-visible {
+    outline-color: var(--color-focus-ring-inverse);
+  }
+
+  /*
+   * Forced-colors mode replaces our palette wholesale. Hand the ring back to
+   * the system highlight rather than fighting for a colour the user has
+   * already overridden.
+   */
+  @media (forced-colors: active) {
+    :focus-visible {
+      outline-color: Highlight;
+    }
+  }
+
+  /*
+   * 2.2.2 and 2.3.3, applied to ourselves. Durations collapse rather than
+   * animations being removed, so anything whose completion depends on a
+   * transitionend still fires.
+   */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
