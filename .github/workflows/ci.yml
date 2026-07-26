@@ -144,6 +144,12 @@ jobs:
       - run: pnpm --filter @handrail/fixture-seeded-demo build
       - run: pnpm --filter @handrail/cli golden:scan
 
+      # Recall against the planted ground truth, in the same job because it needs
+      # the same browser and the same built fixture. A drop is a regression; a
+      # rise is progress that still has to be recorded deliberately, so both fail
+      # until the baseline is re-recorded and the diff reviewed.
+      - run: pnpm --filter @handrail/cli recall:baseline
+
   audit:
     runs-on: ubuntu-latest
     steps:

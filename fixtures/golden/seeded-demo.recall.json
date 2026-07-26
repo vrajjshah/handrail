@@ -1,0 +1,164 @@
+{
+  "baselineVersion": 1,
+  "fixture": "seeded-demo",
+  "overall": {
+    "planted": 14,
+    "found": 7,
+    "recall": 0.5
+  },
+  "byDetectabilityClass": [
+    {
+      "detectableBy": "ai-text",
+      "planted": 3,
+      "found": 2,
+      "recall": 0.667
+    },
+    {
+      "detectableBy": "ai-vision",
+      "planted": 3,
+      "found": 0,
+      "recall": 0
+    },
+    {
+      "detectableBy": "deterministic",
+      "planted": 3,
+      "found": 2,
+      "recall": 0.667
+    },
+    {
+      "detectableBy": "heuristic",
+      "planted": 5,
+      "found": 3,
+      "recall": 0.6
+    }
+  ],
+  "defects": [
+    {
+      "id": "gt-001",
+      "scPrimary": "1.1.1",
+      "detectableBy": [
+        "ai-vision"
+      ],
+      "found": false
+    },
+    {
+      "id": "gt-002",
+      "scPrimary": "1.1.1",
+      "detectableBy": [
+        "deterministic"
+      ],
+      "found": true,
+      "foundBy": "axe.image-alt",
+      "tier": "violation"
+    },
+    {
+      "id": "gt-003",
+      "scPrimary": "3.3.2",
+      "detectableBy": [
+        "ai-text"
+      ],
+      "found": false
+    },
+    {
+      "id": "gt-004",
+      "scPrimary": "1.4.3",
+      "detectableBy": [
+        "deterministic"
+      ],
+      "found": true,
+      "foundBy": "axe.color-contrast",
+      "tier": "violation"
+    },
+    {
+      "id": "gt-005",
+      "scPrimary": "2.4.7",
+      "detectableBy": [
+        "heuristic"
+      ],
+      "found": true,
+      "foundBy": "kbd.focus-visible",
+      "tier": "violation"
+    },
+    {
+      "id": "gt-006",
+      "scPrimary": "2.4.4",
+      "detectableBy": [
+        "ai-text"
+      ],
+      "found": true,
+      "foundBy": "ai.link-purpose",
+      "tier": "likely"
+    },
+    {
+      "id": "gt-007",
+      "scPrimary": "1.4.10",
+      "detectableBy": [
+        "heuristic"
+      ],
+      "found": false
+    },
+    {
+      "id": "gt-008",
+      "scPrimary": "2.4.3",
+      "detectableBy": [
+        "heuristic"
+      ],
+      "found": true,
+      "foundBy": "kbd.walk",
+      "tier": "violation"
+    },
+    {
+      "id": "gt-009",
+      "scPrimary": "2.5.8",
+      "detectableBy": [
+        "heuristic"
+      ],
+      "found": true,
+      "foundBy": "ptr.target-size",
+      "tier": "violation"
+    },
+    {
+      "id": "gt-010",
+      "scPrimary": "1.4.1",
+      "detectableBy": [
+        "ai-vision"
+      ],
+      "found": false
+    },
+    {
+      "id": "gt-011",
+      "scPrimary": "3.1.1",
+      "detectableBy": [
+        "deterministic"
+      ],
+      "found": false
+    },
+    {
+      "id": "gt-012",
+      "scPrimary": "1.4.5",
+      "detectableBy": [
+        "ai-vision"
+      ],
+      "found": false
+    },
+    {
+      "id": "gt-013",
+      "scPrimary": "1.3.1",
+      "detectableBy": [
+        "ai-text"
+      ],
+      "found": true,
+      "foundBy": "ai.heading-outline",
+      "tier": "likely"
+    },
+    {
+      "id": "gt-014",
+      "scPrimary": "2.1.2",
+      "detectableBy": [
+        "heuristic"
+      ],
+      "found": false
+    }
+  ],
+  "trapsFlagged": []
+}

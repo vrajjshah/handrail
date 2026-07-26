@@ -27,7 +27,8 @@
   ],
   "scripts": {
     "handrail": "tsx src/main.ts",
-    "golden:scan": "tsx src/scripts/golden-scan.ts"
+    "golden:scan": "tsx src/scripts/golden-scan.ts",
+    "recall:baseline": "tsx src/scripts/recall-baseline.ts"
   },
   "dependencies": {
     "@handrail/engine": "workspace:*",

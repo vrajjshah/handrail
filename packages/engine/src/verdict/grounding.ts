@@ -78,6 +78,44 @@ function attributeValueMatches(claimed: string, actual: string, name: string): b
 }
 
 /**
+ * Fields of the element record that a claim may cite besides an HTML attribute.
+ *
+ * A model reasoning about a page does not distinguish "the `alt` attribute" from
+ * "the tag" or "the link text" — they are all just facts about the element, and
+ * all four are recorded in the snapshot, so all four are equally checkable. This
+ * is not a loosening of grounding: the claim is still re-read from the capture
+ * and still rejected when it does not match. It only stops us treating a
+ * *truthful, verifiable* statement as a fabrication because of where the value
+ * happens to live in our own data structure.
+ *
+ * Measured, not guessed: the first real recorded response cited `text` and `tag`
+ * with exactly the values the snapshot held, and both were rejected (#69).
+ */
+const CITABLE_ELEMENT_FIELDS = ['tag', 'text', 'role', 'accessibleName'] as const;
+
+type CitableField = (typeof CITABLE_ELEMENT_FIELDS)[number];
+
+function isCitableField(name: string): name is CitableField {
+  return (CITABLE_ELEMENT_FIELDS as readonly string[]).includes(name);
+}
+
+/**
+ * The snapshot's value for a cited name, or `undefined` when the page carries no
+ * such fact.
+ *
+ * Real attributes win over element fields: an element that literally carries an
+ * attribute named `text` is describing itself, and the DOM is the more specific
+ * authority. A null `text`/`role`/`accessibleName` counts as absent, because
+ * "this element has no accessible name" is exactly what null means.
+ */
+export function resolveCitedValue(element: ElementRecord, name: string): string | undefined {
+  const attribute = element.attributes[name];
+  if (attribute !== undefined) return attribute;
+  if (!isCitableField(name)) return undefined;
+  return element[name] ?? undefined;
+}
+
+/**
  * Stage 1 of the verdict pipeline.
  *
  * This is the stage that makes "reported hallucinations are structurally zero" a
@@ -138,7 +176,7 @@ export function groundCandidate(
 
   const groundedAttributes: Record<string, string> = {};
   for (const claimed of candidate.claimedAttributes) {
-    const actual = element.attributes[claimed.name];
+    const actual = resolveCitedValue(element, claimed.name);
     if (actual === undefined) {
       return {
         ok: false,

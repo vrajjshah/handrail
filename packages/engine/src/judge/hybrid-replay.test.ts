@@ -84,20 +84,20 @@ describe('the hybrid path replays with no credentials', () => {
 });
 
 /**
- * What the recording actually revealed, pinned so it cannot change unnoticed.
+ * What the real model actually finds, pinned so it cannot regress unnoticed.
  *
- * On this capture the real model raised three candidates and **every one cited
- * an attribute the element does not carry**, so grounding rejected all three and
- * the page yielded no AI findings at all. #10's suite shows gt-006/gt-013/gt-003
- * reaching `likely`, but those runs answer with *scripted* candidates that
- * ground by construction — the gap between the two is precisely the thing a
- * synthetic backend cannot show you.
+ * This is the assertion that #69 was about. Against a real recorded response the
+ * judge reaches the same two seeded defects the scripted suite does — gt-006
+ * (link purpose, 2.4.4) and gt-013 (heading outline, 1.3.1) — at `likely`, which
+ * requires the independent verifier to have confirmed them.
  *
- * The trust core behaved correctly: nothing unsupported reached the report. The
- * open question is recall, and it belongs to the prompt, not to this layer.
+ * It did **not** work before the grounding fix: the model cited `text` and `tag`
+ * with exactly the values the snapshot held, and both were rejected because
+ * grounding only looked inside `element.attributes`. Recall was zero, and only a
+ * real recorded response could show it.
  */
-describe('what the real model actually did', () => {
-  it('rejected every candidate at grounding, and reported none of them', async () => {
+describe('what the real model actually finds', () => {
+  it('reaches gt-006 and gt-013 at `likely`, verifier-confirmed', async () => {
     const ledger = new CostLedger({ scanId: scanId('scan_replay') });
 
     const result = await runTextJudgment(
@@ -105,12 +105,33 @@ describe('what the real model actually did', () => {
       capture,
     );
 
-    expect(result.candidatesSeen).toBeGreaterThan(0);
-    expect(result.rejected).toHaveLength(result.candidatesSeen);
-    expect(result.findings).toHaveLength(0);
-    expect(new Set(result.rejected.map((entry) => entry.reason))).toEqual(
-      new Set(['attribute-absent']),
+    expect(result.findings.map((finding) => finding.checkId).sort()).toEqual([
+      'ai.heading-outline',
+      'ai.link-purpose',
+    ]);
+    expect(result.findings.map((finding) => finding.tier)).toEqual(['likely', 'likely']);
+    expect(new Set(result.findings.map((finding) => String(finding.scPrimary)))).toEqual(
+      new Set(['2.4.4', '1.3.1']),
     );
+    // `likely` is only reachable through the independent verifier.
+    for (const finding of result.findings) {
+      expect(finding.verification.status).toBe('confirmed');
+    }
+  });
+
+  it('still rejects the claims the page does not support', async () => {
+    const ledger = new CostLedger({ scanId: scanId('scan_replay') });
+
+    const result = await runTextJudgment(
+      { ledger, client: cassetteClient(), verifierClient: cassetteClient() },
+      capture,
+    );
+
+    // Widening grounding to cover `tag`/`text`/`role`/`accessibleName` did not
+    // make it permissive: the model also claimed an `alt=""` on an image that
+    // carries no `alt` at all, and that is still thrown out and ledgered.
+    expect(result.rejected.length).toBeGreaterThan(0);
+    expect(result.candidatesSeen).toBe(result.findings.length + result.rejected.length);
   });
 
   it('keeps reported hallucinations structurally zero', async () => {

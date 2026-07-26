@@ -7,7 +7,7 @@
     "provider": "bedrock",
     "model": "claude-haiku-4-5"
   },
-  "recordedAt": "2026-07-26T01:10:49.804Z",
+  "recordedAt": "2026-07-26T01:21:00.832Z",
   "request": {
     "model": "anthropic.claude-haiku-4-5",
     "max_tokens": 1500,
@@ -127,13 +127,13 @@
   },
   "response": {
     "model": "claude-haiku-4-5-20251001",
-    "id": "msg_bdrk_krjve4cv4xc35gttmsqqg4oivxnktokuhlosmxqw574narstpila",
+    "id": "msg_bdrk_yhstxoal2cxyoyp5cg3khlo5sekkowawadpltpz7ijg3k3zbdpoa",
     "type": "message",
     "role": "assistant",
     "content": [
       {
         "type": "tool_use",
-        "id": "toolu_bdrk_01GgNVexAxEPfdvECrojAGnX",
+        "id": "toolu_bdrk_01SEw5t4pdBY6jRi9pvCdE5R",
         "name": "emit_structured_result",
         "input": {
           "candidates": [
@@ -144,11 +144,17 @@
                 {
                   "name": "text",
                   "value": "Click here"
+                },
+                {
+                  "name": "href",
+                  "value": "#menu-detail"
                 }
               ],
-              "problem": "The link text 'Click here' does not identify where the link goes. Screen-reader users navigating a list of links will find this ambiguous and unhelpful, especially if repeated across the page.",
-              "confidence": 0.95,
-              "severity": "serious"
+              "problem": "The link text 'Click here' does not identify where the link goes. Screen reader users pulling up a link list will see only 'Click here' repeated across the page with no indication of the destination.",
+              "quotedDom": "Click here",
+              "remediation": "Replace the link text with descriptive text such as 'View full menu details' or 'See detailed menu'.",
+              "severity": "serious",
+              "confidence": 0.95
             },
             {
               "family": "heading-outline",
@@ -159,22 +165,44 @@
                   "value": "h3"
                 }
               ],
-              "problem": "The h3 heading 'From the kitchen' skips from the h1 'An eight-course supper, twice a week' directly to h3, creating a gap in the outline that screen-reader users navigate by.",
-              "confidence": 0.95,
-              "severity": "serious"
+              "problem": "The h3 heading 'From the kitchen' appears without a preceding h2, skipping a level in the outline hierarchy. This breaks the heading structure that screen reader users navigate by.",
+              "quotedDom": "From the kitchen",
+              "remediation": "Either promote this heading to h2, or insert an h2 heading before it to maintain a proper outline sequence.",
+              "severity": "serious",
+              "confidence": 0.92
             },
             {
-              "family": "alt-text-triage",
-              "elemId": "e28",
+              "family": "label-quality",
+              "elemId": "e72",
               "claimedAttributes": [
                 {
-                  "name": "alt",
-                  "value": ""
+                  "name": "type",
+                  "value": "email"
+                },
+                {
+                  "name": "placeholder",
+                  "value": "Email address"
                 }
               ],
-              "problem": "The img element has no alt attribute at all. If this image carries meaning, it is unannounced to screen-reader users; if it is decorative, it should have alt=\"\" to hide it explicitly.",
-              "confidence": 0.85,
-              "severity": "serious"
+              "problem": "The email input field relies only on a placeholder for its label. When the user begins typing, the placeholder disappears, leaving the field unidentified to screen reader users.",
+              "quotedDom": "placeholder=\"Email address\"",
+              "remediation": "Associate this input with a persistent <label> element using for/id, or add an aria-label. Do not rely on placeholder alone.",
+              "severity": "serious",
+              "confidence": 0.93
+            },
+            {
+              "family": "page-title",
+              "elemId": "e0",
+              "claimedAttributes": [
+                {
+                  "name": "title",
+                  "value": "Northwind Supper Club"
+                }
+              ],
+              "problem": "The page title 'Northwind Supper Club' identifies the site name but does not indicate the specific page content. A screen reader user cannot distinguish this page from any other page on the site based on the title alone.",
+              "remediation": "Include page-specific information in the title, such as 'Northwind Supper Club - Home' or 'Northwind Supper Club - Book a Table'.",
+              "severity": "moderate",
+              "confidence": 0.88
             }
           ]
         }
@@ -191,7 +219,7 @@
         "ephemeral_5m_input_tokens": 0,
         "ephemeral_1h_input_tokens": 0
       },
-      "output_tokens": 427,
+      "output_tokens": 771,
       "service_tier": "standard"
     }
   }
