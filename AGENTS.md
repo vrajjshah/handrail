@@ -212,19 +212,48 @@ Verified working: `pnpm install && pnpm test` green from a clean clone,
 
 ## Next up
 
-**Phase 2 — the hosted showcase.** #14–#20 are done: the design system, the
-shell, the API, persistence, the stream, the guards and the probes. What
-remains is #21 (Docker/Railway/deploy), #22 (R2 + retention), #23 (the scan
-flow in the UI), #24 (the dogfood CI gate), #25 (`.claude/` skills + DEMO.md)
-and #26 (the manual screen-reader pass).
+**Phase 2 is half done: #14–#20 are merged, #21–#26 are not.** Audited on
+2026-07-26 against the plan's own Phase 2 acceptance row and §Verification per
+phase — not the issue checkboxes.
 
-**Nothing is deployed yet, and the demo URL does not exist.** The abuse
-controls that gate it are in place, which was the point of doing #19 before
-#21.
+**What the audit could verify, live, today** (a real server, real Postgres,
+real Chromium, `https://example.com`):
 
-**Without `DATABASE_URL` the server is in-memory and says so.** No queue, so no
-scan ever runs; `main.ts` warns at boot rather than letting it look durable.
-That is a deliberate visible degradation, not a silent fallback.
+- `POST /api/scans` → 202 → pg-boss → worker → **completed scan, report served**.
+  The whole hosted path runs end to end locally.
+- **429 on the fourth scan in an hour**, with `Retry-After: 3546` and a message
+  that says "about 60 minutes".
+- **SSRF probes rejected**: `localhost`, `127.0.0.1:5432`, `169.254.169.254`,
+  `10.0.0.1`, `[::1]` — all 422, and the admin token bypasses the *rate limit*
+  without bypassing the *guard*.
+- **Worker restart mid-scan resumes** from its checkpoint without re-capturing
+  (automated, against real Postgres).
+- `/readyz` red on a broken Chromium while `/healthz` stays 200.
+
+**What Phase 2's acceptance still needs, and which issue owns it:**
+
+| Acceptance clause | State | Owner |
+|---|---|---|
+| Public URL, paste a site, watch it stream | **not started** — no deploy, and no scan screen | #21, #23 |
+| Scan survives restart | **done**, proven | #18 |
+| SSRF attempts rejected | **done**, proven | #19 |
+| Stats endpoint live | endpoint works; nothing is *live* | #21 |
+| UI passes its own scan **in CI** | the scan passes (0 findings, 5 pass-verified); it is **not a gate** | #24 |
+| Manual VoiceOver pass | **not started** — a human task | #26 |
+| deploy.yml smoke + rollback rehearsed | **not started** | #21 |
+| `docker compose up` full scan **on Windows** | **not started** — no compose file, and no Windows machine here | #21 + the owner |
+
+**Three gaps worth knowing before picking up #21–#23:**
+
+1. **The hosted scan takes no screenshots.** `runScanJob` passes no
+   `ArtifactStore`, and the Postgres runtime still uses `MemoryArtifactReader`,
+   so the `artifacts` table has never had a row and `report.html` from the API
+   has no evidence images. That is #22's job, but #23's report screen depends on
+   it.
+2. **`eval_runs` exists and is unused.** Deliberate — the table is cheap now and
+   awkward to retrofit around live data. Phase 3 fills it.
+3. **DNS rebinding is not covered** by the SSRF preflight (gotcha below). The
+   fix belongs with #21, where the browser is launched.
 
 **Phase 1 is genuinely done** — audited against the plan's acceptance row and
 §Verification per phase, not just the issue list. All twelve issues closed, three
@@ -232,43 +261,19 @@ public sites scanned into schema-valid reports, deterministic mode $0 offline,
 golden snapshot and cassettes both running in CI with no API key, recall baseline
 committed.
 
-**Superseded note (kept for context):** A full deterministic
-scan of the seeded-demo, normalised (timestamps, ids and paths stripped) into an
-event stream plus `report.json`, diffed against committed goldens. It catches
-orchestration and shape drift no unit test can see. **Add `golden-scan` to the
-required status checks in the same PR that first makes it run** — requiring a
-check that never reports blocks every PR forever.
-
-**Then #9 finally closes.** Its acceptance ("full hybrid path green in CI with no
-API key") needs a recorded cassette corpus, and recording needs a real
-`ANTHROPIC_API_KEY` against a real page:
-`MODEL_MODE=record pnpm --filter @handrail/cli handrail scan <url> --mode hybrid`,
-then commit what lands in `cassettes/`. Nobody has run it yet — the machinery is
-done, the corpus is empty, and `findUncoveredRoles` will tell you so.
-
 **Still open, deliberately:**
 
-- **Site-level checks and the score/report nodes are placeholders.** `site`,
-  `score` and `report` currently emit a `log` and pass state through: the graph
-  shape and the event contract are what #11 was for. Site-level checks are #45;
-  the per-SC rollup and report artifacts land with the CLI and #13.
+- **The `site` node is still a placeholder.** It emits a `log` and passes state
+  through; site-level checks (consistent nav 3.2.3, multiple ways 2.4.5, …) are
+  #45. `score` and `report` are real as of #12.
 - **The graph is linear, and its channels are last-write-wins because of that.**
   When the crawler grows a `Send` fan-out (#46), the accumulating channels
   (`captures`, `findings`, `rejected`, `degradations`) need concat reducers and
   the emitter needs a writer per task instead of one mutable sink.
 
-- **The cassette corpus is still empty.** #10 built the prompts and wired
-  `CURRENT_PROMPT_VERSIONS` into `findStaleCassettes` / `findUncoveredRoles`
-  (there is a test asserting both roles currently read as *uncovered*), but
-  recording needs a real API key and a real target page, which belongs with the
-  CLI (#12) rather than a unit-test slice. **#9's "full hybrid path green in CI"
-  acceptance is therefore still outstanding** — the replay path is exercised, the
-  corpus is not.
-- **The text judge runs per page *state*, not per page.** Text content does not
-  change with viewport, so judging `desktop`, `mobile` and `reflow-320`
-  separately would triple the cost for identical answers. The orchestrator should
-  judge one state per URL and reuse the verdict; the engine deliberately does not
-  decide this.
+- **`kbd.focus-visible` accepts a ring drawn on a visually hidden element**
+  (#74, found while building our own UI). Filed, unscheduled; needs a fixture
+  first, per this repo's TDD.
 - **`ai.lang-of-parts` and the two error families have no fixture.** They are
   implemented and re-checked but the seeded demo has no foreign-language passage
   and no error state, so their recall is untested. Phase 3's fixture corpus.
