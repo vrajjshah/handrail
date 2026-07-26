@@ -78,6 +78,18 @@ export interface ScanStore {
    * must be harmless.
    */
   saveFindings(id: ScanId, findings: readonly Finding[]): Promise<void>;
+
+  /**
+   * When this address started scans, since `since`.
+   *
+   * Timestamps rather than a count, because the rate limit is a sliding window
+   * and the only honest answer to "when can I try again" is when the oldest one
+   * ages out. A counter in a bucket cannot say.
+   */
+  recentScanTimesForIp(clientIp: string, since: Date): Promise<Date[]>;
+
+  /** Scans currently running, across the whole deployment. */
+  countRunning(): Promise<number>;
 }
 
 /**

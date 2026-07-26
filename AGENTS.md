@@ -20,6 +20,19 @@ reserved that slot for.
 
 Landed:
 
+- **Abuse controls (#19) — the gate before the URL can be shared.** SSRF guard
+  with a scheme allowlist, no-credentials rule, hostname blocklist, DNS resolve
+  and a verdict on **every** returned address, and **redirects followed one hop
+  at a time so each is judged before the next is taken**. All four named probes
+  are refused with a test — `localhost`, `127.0.0.1`, `169.254.169.254`, and a
+  public URL that 302s to the metadata endpoint — plus IPv4-mapped IPv6,
+  octal-looking literals, NAT64, CGNAT and a name that resolves to one public
+  *and* one private address. Drilled twice: removing the 169.254/16 block, and
+  skipping the per-hop re-check. Sliding-window rate limit (3/hr/IP, global cap
+  2) computed from the `scans` table so a restart is not a fresh allowance, a
+  constant-time admin bypass that is off unless configured, hosted ceilings
+  applied server-side, and a test asserting no evasion or CAPTCHA dependency
+  exists.
 - **The SSE stream with exact replay (#17).** `GET /api/scans/:id/events`, with
   `ScanEvent.seq` as the SSE event id, so "what have I seen" is a number the
   client hands back and "what am I owed" is a range query — no cursor, no
@@ -191,9 +204,9 @@ Verified working: `pnpm install && pnpm test` green from a clean clone,
 
 ## Next up
 
-**Phase 2 — the hosted showcase.** #14, #15, #16, #17 and #18 are done. Next:
-#19 (abuse controls) → #20 (healthz/readyz), then #23 fills the shell with the
-scan flow.
+**Phase 2 — the hosted showcase.** #14–#19 are done. Next: #20
+(healthz/readyz), then #21 (Docker/Railway), #22 (R2), #23 (the scan flow),
+#24 (dogfood gate), #25 (skills + DEMO.md), #26 (screen-reader pass).
 
 **Without `DATABASE_URL` the server is in-memory and says so.** No queue, so no
 scan ever runs; `main.ts` warns at boot rather than letting it look durable.
@@ -253,6 +266,23 @@ comparison scorecard wants a second rule engine.
 
 ## Known gotchas
 
+- **The SSRF guard's preflight does not stop DNS rebinding, and says so.**
+  `assertSafeUrl` resolves and judges every address at submit time and
+  re-validates every redirect, which is what the acceptance asks for. It cannot
+  stop a name that answers publicly then privately a second later, because the
+  browser resolves again when it navigates. The real fix is pinning the
+  validated address for the scan (Chromium's `--host-resolver-rules`), and it
+  belongs with #21 where the browser is launched per scan. Do not describe the
+  current guard as rebinding-proof.
+- **Parse and judge an address with the same code, or the two will disagree.**
+  `0177.0.0.1` is octal for 127.0.0.1 to some resolvers, and `::ffff:127.0.0.1`
+  is loopback wearing a hat. `isIpLiteral` is built on the same parsers as
+  `checkIp` precisely so "is this an address" and "is this address allowed"
+  cannot answer differently. A separate regex for the first question is how
+  these bypasses get in.
+- **Check the rate limit *before* the SSRF guard.** Otherwise a rejected probe
+  is free, and someone can walk the private range one 422 at a time. There is a
+  test for the ordering.
 - **Subscribe before reading the backlog, never after.** Between an SSE
   handler's backlog read and its subscription is exactly where an event is
   written and never delivered — and the client then waits forever for a scan

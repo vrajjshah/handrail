@@ -2,6 +2,7 @@ import { ReportSchema, ScanRecordSchema } from '@handrail/schemas';
 import { CRITERIA_COUNT } from '@handrail/wcag';
 import { afterEach, describe, expect, it } from 'vitest';
 
+import { HOSTED_LIMITS } from '../security/limits.js';
 import { completeScan, harness, testFinding, type Harness } from '../__test__/harness.js';
 
 let current: Harness | undefined;
@@ -89,8 +90,10 @@ describe('POST /api/scans', () => {
     const scan = ScanRecordSchema.parse(response.json<{ scan: unknown }>().scan);
     expect(scan.target.kind).toBe('url');
     if (scan.target.kind !== 'url') throw new Error('expected a url target');
-    expect(scan.target.crawl.maxPages).toBe(5);
-    expect(scan.target.budget.maxUsd).toBe(1.5);
+    // The hosted ceilings from #19, not the schema defaults — the server
+    // decides what a stranger's scan may cost, and it decides downwards.
+    expect(scan.target.crawl.maxPages).toBe(HOSTED_LIMITS.maxPages);
+    expect(scan.target.budget.maxUsd).toBe(HOSTED_LIMITS.maxUsd);
   });
 });
 

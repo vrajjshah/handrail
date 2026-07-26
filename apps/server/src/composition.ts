@@ -37,6 +37,14 @@ export interface Runtime {
 }
 
 export function buildRuntime(config: Config): Runtime {
+  if (config.NODE_ENV === 'production' && config.ADMIN_TOKEN === undefined) {
+    // Not fatal — a public demo with no admin bypass is a valid deployment —
+    // but silence here is how a rate limit gets turned off "temporarily".
+    process.stderr.write(
+      'ADMIN_TOKEN is not set: nothing can bypass the rate limits on this deployment.\n',
+    );
+  }
+
   if (config.DATABASE_URL === undefined) {
     // Not a fallback in the forbidden sense — nothing is silently degraded.
     // The caller logs it, `/readyz` reports it, and no scan runs, because
