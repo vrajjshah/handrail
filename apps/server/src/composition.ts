@@ -8,6 +8,8 @@ import {
 
 import type { Config } from './config.js';
 import { connect, type DatabaseHandle } from './db/client.js';
+import { MemoryEventBus, type ScanEventBus } from './events/bus.js';
+import { PostgresEventBus } from './events/postgres-bus.js';
 import { MemoryArtifactReader, MemoryScanStore } from './store/memory.js';
 import { PostgresScanStore } from './store/postgres.js';
 import type { ArtifactReader, ScanStore } from './store/types.js';
@@ -26,6 +28,7 @@ export interface Runtime {
   store: ScanStore;
   artifacts: ArtifactReader;
   queue: ScanQueue | undefined;
+  eventBus: ScanEventBus;
   checkpointer: ScanCheckpointer | undefined;
   database: DatabaseHandle | undefined;
   /** True when nothing survives a restart. Reported, never hidden. */
@@ -38,14 +41,16 @@ export function buildRuntime(config: Config): Runtime {
     // Not a fallback in the forbidden sense — nothing is silently degraded.
     // The caller logs it, `/readyz` reports it, and no scan runs, because
     // there is no queue to carry one.
+    const eventBus = new MemoryEventBus();
     return {
-      store: new MemoryScanStore(),
+      store: new MemoryScanStore({ bus: eventBus }),
       artifacts: new MemoryArtifactReader(),
       queue: undefined,
+      eventBus,
       checkpointer: undefined,
       database: undefined,
       ephemeral: true,
-      close: () => Promise.resolve(),
+      close: () => eventBus.close(),
     };
   }
 
@@ -56,15 +61,24 @@ export function buildRuntime(config: Config): Runtime {
     expireInSeconds: config.JOB_EXPIRE_SECONDS,
   });
 
+  // The bus notifies through the pool and listens on a connection of its own —
+  // a `LISTEN` on a pooled connection belongs to whoever borrows it next.
+  const eventBus = new PostgresEventBus({
+    connectionString: config.DATABASE_URL,
+    pool: database.pool,
+  });
+
   return {
-    store: new PostgresScanStore(database.db),
+    store: new PostgresScanStore(database.db, { bus: eventBus }),
     artifacts: new MemoryArtifactReader(),
     queue,
+    eventBus,
     checkpointer: createPostgresCheckpointer(config.DATABASE_URL),
     database,
     ephemeral: false,
     close: async () => {
       await queue.stop();
+      await eventBus.close();
       await database.close();
     },
   };

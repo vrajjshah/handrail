@@ -11,6 +11,7 @@ import {
   type ScanRecord,
 } from '@handrail/schemas';
 
+import type { ScanEventBus } from '../events/bus.js';
 import { durationMsOf, p50, p95 } from './stats.js';
 import {
   ArtifactNotFoundError,
@@ -46,10 +47,14 @@ export class MemoryScanStore implements ScanStore {
   private readonly scans = new Map<string, Entry>();
   private readonly now: () => Date;
   private readonly newId: () => string;
+  private readonly bus: ScanEventBus | undefined;
 
-  constructor(options: { now?: () => Date; newId?: () => string } = {}) {
+  constructor(
+    options: { now?: () => Date; newId?: () => string; bus?: ScanEventBus } = {},
+  ) {
     this.now = options.now ?? (() => new Date());
     this.newId = options.newId ?? (() => `scan_${randomUUID()}`);
+    this.bus = options.bus;
   }
 
   create(input: CreateScanInput): Promise<ScanRecord> {
@@ -102,11 +107,13 @@ export class MemoryScanStore implements ScanStore {
     return Promise.resolve();
   }
 
-  appendEvents(id: ScanId, events: readonly ScanEvent[]): Promise<void> {
+  async appendEvents(id: ScanId, events: readonly ScanEvent[]): Promise<void> {
     const entry = this.scans.get(id);
-    if (entry === undefined) return Promise.resolve();
+    if (entry === undefined) return;
     entry.events.push(...events);
-    return Promise.resolve();
+    // Notifying from inside the append is what makes the SSE stream correct by
+    // construction: there is no way to write events and forget to announce them.
+    await this.bus?.notify(id);
   }
 
   eventsSince(id: ScanId, afterSeq: number): Promise<ScanEvent[]> {
