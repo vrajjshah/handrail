@@ -36,6 +36,13 @@ points differ from the source document. Everything else is verbatim.
   reasoning, the arithmetic and the revisit trigger are in
   [ADR-0005](adr/0005-verifier-prompt-caching.md). The uncached text layer costs ≈$0.14 on a
   10-page scan, so the $0.25–0.80 hybrid band in §Cost engineering still holds.
+- **[†6] Phase 2 freshness check (2026-07-25): no drift against a locked decision.** Every framework
+  the Phase 2 row names is available at the major version it names (Fastify 5.10, React 19.2,
+  Tailwind 4.3, pg-boss 12.26, Drizzle 0.45, React Aria Components 1.19, TanStack Query 5.101).
+  One clarification: **"auto-OpenAPI" resolves to two packages, not one** —
+  `fastify-type-provider-zod@7` hard-requires `@fastify/swagger` (>= 9.5.1) as a peer, and the
+  JSON-Schema conversion is only reachable through it. It also requires `zod >= 4.1.5`, which the
+  repo already satisfies. See [ADR-0006](adr/0006-phase-2-freshness-check.md).
 - **[†3] Toolchain pins drifted from the Locked-decisions table** (vitest ^3 → 4, "eslint 9" → 10,
   TypeScript held at 6.0.3 rather than 7 because `typescript-eslint` still caps its peer range at
   `<6.1.0`). Recorded per §0.1's freshness-check rule in
@@ -81,7 +88,7 @@ The spike in `C:\HCL\App Builder` (LangGraph vs Mastra on a WCAG review→fix→
 | Framework | **LangGraph 1.x** — fresh merit decision (user said ignore spike tie-break): we build our own Fastify server + Vite SPA (neutralizes Mastra's app-framework edge); LangGraph wins on Postgres checkpointing riding our DB, `interrupt()` human gates, `Send` fan-out, custom stream events → SSE, ecosystem/portfolio weight. Recorded in ADR-0001. |
 | Name | **Handrail** — `@handrail/*` packages, `handrail` CLI (`npx handrail scan <url>`). Verify npm scope at first publish (fallback `@handrail-a11y`). |
 | Hosting | **Railway** — single Dockerfile (Playwright base image), managed Postgres, ~$5–15/mo; `SERVICE_ROLE=api\|worker\|both` selects the process role from one image. [†2] |
-| Server stack | Fastify 5 + `fastify-type-provider-zod` (auto-OpenAPI), pg-boss (queue in Postgres, no Redis), Drizzle, SSE with Last-Event-ID replay, React 19 + Vite SPA + Tailwind 4 + TanStack Query. |
+| Server stack | Fastify 5 + `fastify-type-provider-zod` (auto-OpenAPI [†6]), pg-boss (queue in Postgres, no Redis), Drizzle, SSE with Last-Event-ID replay, React 19 + Vite SPA + Tailwind 4 + TanStack Query. |
 | Tests | vitest ^3; custom eval harness as CI gate. [†3] |
 | Runtime | Node `>=22.12`; tsx as runtime through Phase 2 (ADR-0002); Zod 4 from the start (new repo, no legacy); Playwright pinned to its Docker base tag. [†3] |
 | Models | `@handrail/model` provider seam built on **official SDKs**: `anthropic` (`@anthropic-ai/sdk` — **native structured outputs** via `output_config.format` + `zodOutputFormat` = guaranteed schema-valid JSON, image blocks, typed errors), `bedrock` (`@anthropic-ai/bedrock-sdk` Mantle client, `anthropic.`-prefixed model IDs — HCL/enterprise), `openai`, `local-deterministic` (eval backbone, $0). Per-role (verified 2026-07): `claude-haiku-4-5` ($1/$5 MTok) triage/text/verify; **`claude-sonnet-5`** ($3/$15; intro $2/$10 through 2026-08-31) vision/fix — near-Opus agentic quality, high-res vision 2576px. IDs config-swappable; Sonnet 5's tokenizer yields ~30% more text tokens than 4.x — size budgets against it. **Prompt-cache the stable prefix** (system prompt + WCAG reference) across per-page judgment calls (~90% cached-input savings within a scan burst). [†5] BYOK for users; hosted demo uses own key behind hard limits. |
