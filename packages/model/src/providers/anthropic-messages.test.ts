@@ -14,6 +14,7 @@ import {
   DEFAULT_MAX_TOKENS,
   mapCompletion,
   mapProviderError,
+  STRUCTURED_OUTPUT_TOOL,
 } from './anthropic-messages.js';
 
 function resolve<T>(request: ModelRequest<T>): ResolvedModelRequest<T> {
@@ -267,5 +268,68 @@ describe('mapProviderError', () => {
 
   it('wraps an unknown non-error throw as a provider-error', () => {
     expect(mapProviderError('weird', 'anthropic').code).toBe('provider-error');
+  });
+});
+
+describe('structured output where the provider has no native support', () => {
+  const schema = z.object({ clear: z.boolean() });
+  const structured = () =>
+    resolve({
+      role: 'text-judge',
+      promptVersion: 'v1',
+      messages: [{ role: 'user', content: 'judge' }],
+      outputSchema: schema,
+    });
+
+  it('uses output_config on Anthropic, which has it natively', () => {
+    const request = structured();
+    const params = buildCreateParams(request, capabilityFor('anthropic', request.model), request.model);
+    expect(params.output_config?.format).toBeDefined();
+    expect(params.tools).toBeUndefined();
+  });
+
+  it('forces a single tool call on Bedrock, which rejects output_config outright', () => {
+    const request = structured();
+    const params = buildCreateParams(request, capabilityFor('bedrock', request.model), request.model);
+
+    expect(params.output_config).toBeUndefined();
+    expect(params.tools).toHaveLength(1);
+    expect(params.tool_choice).toEqual({ type: 'tool', name: STRUCTURED_OUTPUT_TOOL });
+    // Bedrock refuses a forced tool_choice while thinking is on.
+    expect(params.thinking).toEqual({ type: 'disabled' });
+  });
+
+  it('offers the schema itself as the tool input schema', () => {
+    const request = structured();
+    const params = buildCreateParams(request, capabilityFor('bedrock', request.model), request.model);
+    const tool = params.tools?.[0] as { input_schema: { properties?: Record<string, unknown> } };
+    expect(tool.input_schema.properties).toHaveProperty('clear');
+  });
+
+  it('reads the result from the tool call rather than the text', () => {
+    const completion = mapCompletion(
+      structured(),
+      textResponse({
+        content: [{ type: 'tool_use', name: STRUCTURED_OUTPUT_TOOL, input: { clear: true } }],
+      }),
+      'bedrock',
+    );
+    expect(completion.output).toEqual({ clear: true });
+  });
+
+  it('still validates the tool input — a call is not the same as a correct call', () => {
+    expect(
+      thrownCode(() =>
+        mapCompletion(
+          structured(),
+          textResponse({
+            content: [
+              { type: 'tool_use', name: STRUCTURED_OUTPUT_TOOL, input: { clear: 'not a boolean' } },
+            ],
+          }),
+          'bedrock',
+        ),
+      ),
+    ).toBe('schema-invalid');
   });
 });

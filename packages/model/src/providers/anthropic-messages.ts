@@ -9,6 +9,7 @@ import {
   type ContentBlockParam,
   type MessageCreateParamsNonStreaming,
   type MessageParam,
+  type Tool,
 } from '@anthropic-ai/sdk/resources/messages';
 
 import { capabilityFor, type ModelCapabilities } from '../capability.js';
@@ -39,7 +40,7 @@ export const DEFAULT_MAX_TOKENS = 4096;
 export interface AnthropicMessageResponse {
   model?: string;
   stop_reason?: string | null;
-  content: { type: string; text?: string }[];
+  content: { type: string; text?: string; name?: string; input?: unknown }[];
   usage: {
     input_tokens: number;
     output_tokens: number;
@@ -107,19 +108,38 @@ function toMessageParam(message: ModelMessage): MessageParam {
 }
 
 /**
+ * The tool a provider without native structured outputs is forced to call.
+ *
+ * Its `input` *is* the structured result — a forced single-tool call is the
+ * portable way to make a model emit schema-shaped JSON, and it is what the
+ * capability map's `forcedToolChoiceRequiresThinkingDisabled` flag was always
+ * pointing at.
+ */
+export const STRUCTURED_OUTPUT_TOOL = 'emit_structured_result';
+
+/**
  * Build the create-params, honouring the ADR-0004 constraints as data from the
  * capability map rather than model-string sniffing: the thinking mode is set
  * explicitly (adaptive where the model runs it, omitted otherwise, never relying
  * on the silent default), and no sampling knob is ever emitted — Sonnet 5 rejects
  * them, so the seam simply has none. The `system` prefix carries a cache
  * breakpoint so a repeated prefix bills as a cache read on the next call.
+ *
+ * Structured output takes one of two routes, chosen by capability:
+ *
+ * - **`output_config.format`** where the provider has native structured outputs.
+ * - **a forced tool call** where it does not. Bedrock rejects `output_config`
+ *   outright (`Extra inputs are not permitted`), so the schema is offered as a
+ *   single tool the model is forced to call, and its `input` is the result.
+ *   Bedrock additionally refuses a forced `tool_choice` while thinking is on,
+ *   which is why the mode is disabled explicitly rather than left to default.
  */
 export function buildCreateParams(
   request: ResolvedModelRequest,
   capabilities: ModelCapabilities,
   wireModel: string,
 ): MessageCreateParamsNonStreaming {
-  return {
+  const params: MessageCreateParamsNonStreaming = {
     model: wireModel,
     max_tokens: request.maxOutputTokens ?? DEFAULT_MAX_TOKENS,
     messages: request.messages.map(toMessageParam),
@@ -133,8 +153,27 @@ export function buildCreateParams(
     ...(capabilities.defaultThinking === 'adaptive'
       ? { thinking: { type: 'adaptive', display: 'omitted' } }
       : {}),
-    ...(request.outputSchema
-      ? { output_config: { format: zodOutputFormat(request.outputSchema) } }
+  };
+
+  const schema = request.outputSchema;
+  if (schema === undefined) return params;
+
+  if (capabilities.supportsStructuredOutput) {
+    return { ...params, output_config: { format: zodOutputFormat(schema) } };
+  }
+
+  return {
+    ...params,
+    tools: [
+      {
+        name: STRUCTURED_OUTPUT_TOOL,
+        description: 'Return the result. Call this exactly once, with the full result.',
+        input_schema: zodOutputFormat(schema).schema as Tool['input_schema'],
+      },
+    ],
+    tool_choice: { type: 'tool', name: STRUCTURED_OUTPUT_TOOL },
+    ...(capabilities.forcedToolChoiceRequiresThinkingDisabled
+      ? { thinking: { type: 'disabled' as const } }
       : {}),
   };
 }
@@ -186,6 +225,21 @@ export function mapCompletion(
   const cached = (usage.cacheRead ?? 0) > 0;
 
   if (request.outputSchema) {
+    // On the forced-tool route the result arrives already decoded as the tool's
+    // `input`, so there is nothing to JSON.parse — but it is still validated
+    // against the same schema, because "the model called the tool" is not the
+    // same claim as "the model filled it in correctly".
+    const toolCall = response.content.find(
+      (block) => block.type === 'tool_use' && block.name === STRUCTURED_OUTPUT_TOOL,
+    );
+    if (toolCall !== undefined) {
+      const parsed = request.outputSchema.safeParse(toolCall.input);
+      if (!parsed.success) {
+        throw new ModelError('schema-invalid', parsed.error.message, { provider });
+      }
+      return { model: request.model, output: parsed.data, text, usage, cached };
+    }
+
     return {
       model: request.model,
       output: parseStructured(text, request.outputSchema, provider),

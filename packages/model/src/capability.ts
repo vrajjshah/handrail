@@ -88,7 +88,15 @@ export function capabilityFor(provider: ModelProvider, model: string): ModelCapa
   if (base === undefined) throw new UnknownModelCapabilityError(provider, model);
 
   if (provider === 'bedrock') {
-    return { ...base, forcedToolChoiceRequiresThinkingDisabled: true };
+    // Bedrock rejects `output_config` outright — `output_config.format: Extra
+    // inputs are not permitted` — so structured output goes via a forced tool
+    // call there, which in turn requires thinking to be off. Measured against a
+    // live endpoint, not inferred from a compatibility table.
+    return {
+      ...base,
+      supportsStructuredOutput: false,
+      forcedToolChoiceRequiresThinkingDisabled: true,
+    };
   }
   return base;
 }
