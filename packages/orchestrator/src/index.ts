@@ -9,6 +9,7 @@
  */
 export * from './state.js';
 export * from './events.js';
+export * from './checkpoint.js';
 export * from './driver.js';
 export * from './driver-playwright.js';
 export * from './graph.js';

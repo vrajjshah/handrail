@@ -30,6 +30,7 @@ import {
 import { END, START, StateGraph } from '@langchain/langgraph';
 import type { LangGraphRunnableConfig } from '@langchain/langgraph';
 
+import { toSaver, type ScanCheckpointer } from './checkpoint.js';
 import type { ScanDriver } from './driver.js';
 import { ScanEventEmitter } from './events.js';
 import { ScanStateSchema, type ScanState } from './state.js';
@@ -51,6 +52,12 @@ export interface ScanGraphDeps {
    * broken image.
    */
   artifacts?: ArtifactStore;
+  /**
+   * Persist the graph's state after every node, so a worker that dies mid-scan
+   * can resume rather than start over. Omit for a run that has nothing to
+   * resume from — the CLI, the golden scan, most tests.
+   */
+  checkpointer?: ScanCheckpointer;
 }
 
 /** The eight phases this graph runs, in order. Named for `ScanPhaseSchema`. */
@@ -74,8 +81,16 @@ export const SCAN_NODES = [
  */
 export interface CompiledScanGraph {
   stream(
-    input: Pick<ScanState, 'target' | 'options'>,
-    options: { streamMode: readonly ('custom' | 'values')[] },
+    /**
+     * `null` resumes a checkpointed thread from where it stopped instead of
+     * starting one. That distinction is the whole point of checkpointing: a
+     * worker that died in `judge-text` must not pay for the captures again.
+     */
+    input: Pick<ScanState, 'target' | 'options'> | null,
+    options: {
+      streamMode: readonly ('custom' | 'values')[];
+      configurable?: { thread_id: string };
+    },
   ): Promise<AsyncIterable<[string, unknown]>>;
 }
 
@@ -367,7 +382,7 @@ export function createScanGraph(
     .addEdge('site', 'score')
     .addEdge('score', 'report')
     .addEdge('report', END)
-    .compile();
+    .compile(deps.checkpointer === undefined ? {} : { checkpointer: toSaver(deps.checkpointer) });
 
   // Narrowing a third-party generic whose full form is not nameable from here
   // (TS2883). The single method we drive is checked against `CompiledScanGraph`
@@ -383,6 +398,20 @@ export interface RunScanInput {
   now?: () => Date;
   /** Recorded in the report so an artifact can be traced to the code that made it. */
   toolVersion?: string;
+  /**
+   * Resume a checkpointed scan instead of starting one.
+   *
+   * The caller decides, because only the caller knows whether this process is
+   * picking up a job another one dropped. Passing `true` with no checkpointer
+   * is a mistake the graph cannot detect, so it is rejected here.
+   */
+  resume?: boolean;
+  /**
+   * Where the event sequence continues from on a resume. `seq` is the SSE event
+   * id, so a resumed scan that restarted at 0 would tell a reconnecting client
+   * it had already seen events it never received.
+   */
+  startSeq?: number;
 }
 
 export interface ScanRunResult {
@@ -410,7 +439,14 @@ export async function* streamScan(
   deps: ScanGraphDeps,
 ): AsyncGenerator<ScanEvent, ScanRunResult> {
   const now = input.now ?? (() => new Date());
-  const emitter = new ScanEventEmitter({ scanId: input.scanId, ...(input.now ? { now } : {}) });
+  if (input.resume === true && deps.checkpointer === undefined) {
+    throw new Error('cannot resume a scan without a checkpointer: there is nothing to resume from');
+  }
+  const emitter = new ScanEventEmitter({
+    scanId: input.scanId,
+    ...(input.now ? { now } : {}),
+    ...(input.startSeq === undefined ? {} : { startSeq: input.startSeq }),
+  });
   const graph = createScanGraph(deps, emitter);
 
   // The ledger records every model call; the emitter is the only thing allowed
@@ -436,9 +472,16 @@ export async function* streamScan(
     // than state diffs — while `values` carries the state snapshot so the final
     // one is available without invoking the graph a second time. Running it
     // twice would double every capture, every model call and every dollar.
+    // `thread_id` is the scan id, so "which scan" and "which checkpoint thread"
+    // are the same question and no second identifier can drift from the first.
     const stream = await graph.stream(
-      { target: input.target, options: input.options },
-      { streamMode: ['custom', 'values'] },
+      input.resume === true ? null : { target: input.target, options: input.options },
+      {
+        streamMode: ['custom', 'values'],
+        ...(deps.checkpointer === undefined
+          ? {}
+          : { configurable: { thread_id: input.scanId } }),
+      },
     );
     for await (const [mode, payload] of stream) {
       if (mode === 'custom') {

@@ -24,6 +24,15 @@ export interface ScanEventEmitterOptions {
   scanId: ScanId;
   /** Clock seam, so a golden-scan run can be made deterministic. */
   now?: () => Date;
+  /**
+   * Where `seq` picks up.
+   *
+   * A resumed scan is the same scan, so its events continue the same sequence.
+   * Restarting at 0 would mint a second event 4 for one scan id — and `seq` is
+   * the SSE event id, so a reconnecting client would be told it had already
+   * seen events it never received.
+   */
+  startSeq?: number;
 }
 
 /**
@@ -52,6 +61,7 @@ export class ScanEventEmitter {
   constructor(options: ScanEventEmitterOptions) {
     this.scanId = options.scanId;
     this.now = options.now ?? (() => new Date());
+    this.nextSeq = options.startSeq ?? 0;
   }
 
   /** The `seq` the next event will carry. */

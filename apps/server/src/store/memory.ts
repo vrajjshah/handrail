@@ -4,6 +4,7 @@ import {
   ScanRecordSchema,
   scanId as toScanId,
   type ArtifactId,
+  type Finding,
   type Report,
   type ScanEvent,
   type ScanId,
@@ -24,6 +25,8 @@ interface Entry {
   record: ScanRecord;
   report?: Report;
   events: ScanEvent[];
+  /** Keyed by id, because a resumed scan re-emits findings it already sent. */
+  findings: Map<string, Finding>;
   clientIp?: string;
 }
 
@@ -61,6 +64,7 @@ export class MemoryScanStore implements ScanStore {
     this.scans.set(record.id, {
       record,
       events: [],
+      findings: new Map(),
       ...(input.clientIp === undefined ? {} : { clientIp: input.clientIp }),
     });
     return Promise.resolve(record);
@@ -109,6 +113,19 @@ export class MemoryScanStore implements ScanStore {
     const entry = this.scans.get(id);
     if (entry === undefined) return Promise.resolve([]);
     return Promise.resolve(entry.events.filter((event) => event.seq > afterSeq));
+  }
+
+  lastSeq(id: ScanId): Promise<number> {
+    const entry = this.scans.get(id);
+    if (entry === undefined || entry.events.length === 0) return Promise.resolve(-1);
+    return Promise.resolve(Math.max(...entry.events.map((event) => event.seq)));
+  }
+
+  saveFindings(id: ScanId, incoming: readonly Finding[]): Promise<void> {
+    const entry = this.scans.get(id);
+    if (entry === undefined) return Promise.resolve();
+    for (const finding of incoming) entry.findings.set(finding.id, finding);
+    return Promise.resolve();
   }
 
   stats(): Promise<ScanStats> {

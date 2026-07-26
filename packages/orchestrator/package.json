@@ -27,6 +27,7 @@
     "@handrail/model": "workspace:*",
     "@handrail/schemas": "workspace:*",
     "@langchain/langgraph": "^1.4.8",
+    "@langchain/langgraph-checkpoint-postgres": "^1.0.4",
     "zod": "^4.4.3"
   }
 }

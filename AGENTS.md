@@ -20,6 +20,16 @@ reserved that slot for.
 
 Landed:
 
+- **Persistence and the worker (#18).** Drizzle schema (scans, scan_events,
+  findings, artifacts, eval_runs) with a **committed** migration applied as an
+  explicit pre-start step, `PostgresScanStore` behind the same `ScanStore` port
+  the API already used, and pg-boss embedded at concurrency 1. **#18's
+  acceptance holds against a real Postgres**: a worker that dies mid-`detect` is
+  picked up by a second one with fresh objects throughout, resumes from its
+  LangGraph checkpoint, and **does not capture the page again** — drilled by
+  forcing `resumed = false` and watching it go red. `seq` continues across the
+  restart, so the resumed scan's event stream is one unbroken sequence, which is
+  what #17 needs.
 - `apps/server` — the Fastify API (#16). `POST /api/scans` (202), `GET
   /api/scans/:id`, `/report(.html|.sarif)`, `/api/artifacts/:id`, `/api/meta`
   with nearest-rank p50/p95, and `/openapi.json` **generated** from the same Zod
@@ -173,14 +183,13 @@ Verified working: `pnpm install && pnpm test` green from a clean clone,
 
 ## Next up
 
-**Phase 2 — the hosted showcase.** #14, #15 and #16 are done. Next in
-dependency order: #18 (Drizzle + pg-boss) → #17 (SSE replay) → #19 (abuse
-controls) → #20 (healthz/readyz), then #23 fills the shell with the scan flow.
+**Phase 2 — the hosted showcase.** #14, #15, #16 and #18 are done. Next in
+dependency order: #17 (SSE replay) → #19 (abuse controls) → #20
+(healthz/readyz), then #23 fills the shell with the scan flow.
 
-**The API cannot run a scan yet, deliberately.** `POST /api/scans` records a
-`queued` scan and nothing consumes the queue: the worker is #18. The store is
-in-memory until then, and `main.ts` logs that a restart loses everything rather
-than letting it look durable.
+**Without `DATABASE_URL` the server is in-memory and says so.** No queue, so no
+scan ever runs; `main.ts` warns at boot rather than letting it look durable.
+That is a deliberate visible degradation, not a silent fallback.
 
 **Phase 1 is genuinely done** — audited against the plan's acceptance row and
 §Verification per phase, not just the issue list. All twelve issues closed, three
@@ -236,6 +245,38 @@ comparison scorecard wants a second rule engine.
 
 ## Known gotchas
 
+- **`singletonKey` alone does not deduplicate in pg-boss 12.** Under the default
+  `standard` queue policy it is simply recorded, so two `send`s of the same key
+  both enqueue and you have deduplication you can describe but do not have. The
+  queue is created with `policy: 'short'`, which is what makes at most one
+  *waiting* job per key real. Caught by a test that asserted the second publish
+  returns `null` — it did not.
+- **pg-boss 12 has no default export.** `import PgBoss from 'pg-boss'` fails
+  with TS2613; it is `import { PgBoss } from 'pg-boss'`. The batch handler's
+  `jobs` parameter also needs an explicit `Job<T>[]` annotation or it lands as
+  implicit `any`.
+- **Resuming a scan must continue `seq`, not restart it.** `ScanEventEmitter`
+  takes a `startSeq` for this. `seq` is the SSE event id, so a resumed scan that
+  began again at 0 would mint a second event 4 for one scan and tell a
+  reconnecting client it had already seen events it never received. The
+  `(scan_id, seq)` primary key is the backstop, and `appendEvents` uses
+  `onConflictDoNothing` so a retried worker re-writing an event is harmless
+  rather than a crash.
+- **A node-level checkpoint retries the node that failed.** Resuming skips
+  *completed* nodes; the one that threw runs again from the top. So a node must
+  be safe to re-enter — `detect` re-running axe is fine, and anything that
+  spends money or mutates the target would not be. Worth checking before adding
+  a node.
+- **`PostgresSaver.setup()` is DDL, so it belongs in `db:migrate`, not in the
+  worker's boot path.** Two containers starting together would otherwise race
+  each other through the same schema creation, and the loser's error looks like
+  a real failure. Same reason Drizzle migrations are an explicit pre-start step
+  and `drizzle-kit push` is used nowhere.
+- **`*.pg.test.ts` is a separate config and an ubuntu-only CI job.**
+  `pnpm test:pg` with `DATABASE_URL` set; each file `describe.skipIf`s itself
+  without one, and `fileParallelism` is off because they truncate shared tables.
+  Locally: `docker run -d -p 5433:5432 -e POSTGRES_PASSWORD=handrail -e
+  POSTGRES_USER=handrail -e POSTGRES_DB=handrail postgres:17-alpine`.
 - **A `z.transform` or `z.preprocess` anywhere inside a response schema is a
   500, and a JSON Schema of `{}`.** `fastify-type-provider-zod` *encodes* the
   response (output → wire), and a unidirectional transform cannot be encoded:

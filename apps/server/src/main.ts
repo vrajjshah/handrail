@@ -1,46 +1,73 @@
 /**
  * The process entry point.
  *
- * Everything interesting is in `buildServer`, which returns an app rather than
- * listening on one — that is what lets the whole API be tested with `inject()`
- * and no socket. This file exists to read the environment, choose the store,
- * and handle the signals a container sends.
+ * Everything interesting is in `buildServer` and `buildRuntime`, which return
+ * things rather than starting them — that is what lets the whole API be tested
+ * with `inject()` and no socket. This file reads the environment, decides which
+ * halves of the image to run, and handles the signals a container sends.
  */
 import { buildServer } from './app.js';
-import { loadConfig, servesHttp } from './config.js';
-import { MemoryArtifactReader, MemoryScanStore } from './store/memory.js';
+import { assertRunnable, loadConfig, runsScans, servesHttp } from './config.js';
+import { buildRuntime, createScanDriver } from './composition.js';
+import { runScanJob } from './worker/run-scan-job.js';
 import { HANDRAIL_VERSION } from './version.js';
 
 const config = loadConfig();
+assertRunnable(config);
 
-if (!servesHttp(config)) {
-  process.stderr.write(
-    `SERVICE_ROLE=${config.SERVICE_ROLE} does not serve HTTP, and the worker lands in #18.\n`,
-  );
-  process.exit(1);
-}
+const runtime = buildRuntime(config);
 
-// Postgres arrives in #18. Until then the store is in-memory, and it says so
-// rather than pretending a restart is survivable.
 const app = await buildServer({
   config,
-  store: new MemoryScanStore(),
-  artifacts: new MemoryArtifactReader(),
+  store: runtime.store,
+  artifacts: runtime.artifacts,
   toolVersion: HANDRAIL_VERSION,
+  ...(runtime.queue === undefined ? {} : { queue: runtime.queue }),
 });
 
+if (runtime.ephemeral) {
+  app.log.warn(
+    'DATABASE_URL is not set: scans are held in memory, nothing survives a restart, ' +
+      'and no worker will run them. Set it, then run `db:migrate`.',
+  );
+}
+
+if (runsScans(config) && runtime.queue !== undefined) {
+  await runtime.queue.work(async (payload) => {
+    const result = await runScanJob(payload, {
+      store: runtime.store,
+      createDriver: createScanDriver,
+      ...(runtime.checkpointer === undefined ? {} : { checkpointer: runtime.checkpointer }),
+      toolVersion: HANDRAIL_VERSION,
+    });
+    app.log.info({ correlationId: result.scanId, ...result }, 'scan job finished');
+  });
+  app.log.info({ concurrency: config.WORKER_CONCURRENCY }, 'worker consuming the scan queue');
+}
+
+let shuttingDown = false;
 for (const signal of ['SIGINT', 'SIGTERM'] as const) {
   process.once(signal, () => {
+    if (shuttingDown) return;
+    shuttingDown = true;
     app.log.info({ signal }, 'shutting down');
-    void app.close().then(
-      () => process.exit(0),
-      () => process.exit(1),
-    );
+    // The queue stops gracefully, so a scan in flight finishes rather than
+    // orphaning a browser — and if it cannot finish, its job returns to the
+    // queue and the next worker resumes it from its checkpoint.
+    void (async () => {
+      try {
+        await app.close();
+        await runtime.close();
+        process.exit(0);
+      } catch {
+        process.exit(1);
+      }
+    })();
   });
 }
 
-await app.listen({ host: config.HOST, port: config.PORT });
-app.log.info(
-  { role: config.SERVICE_ROLE, store: 'memory' },
-  'scans are held in memory and will not survive a restart until #18',
-);
+if (servesHttp(config)) {
+  await app.listen({ host: config.HOST, port: config.PORT });
+} else {
+  app.log.info({ role: config.SERVICE_ROLE }, 'worker-only process: not listening for HTTP');
+}
