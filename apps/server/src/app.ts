@@ -1,5 +1,5 @@
 import fastifySwagger from '@fastify/swagger';
-import Fastify, { type FastifyInstance } from 'fastify';
+import Fastify, { type FastifyBaseLogger, type FastifyInstance } from 'fastify';
 import {
   createJsonSchemaTransform,
   createJsonSchemaTransformObject,
@@ -12,11 +12,14 @@ import type { Config } from './config.js';
 import { HttpError, ProblemSchema } from './http/problem.js';
 import { registerArtifactRoutes } from './routes/artifacts.js';
 import { registerEventRoutes } from './routes/events.js';
+import { registerHealthRoutes } from './routes/health.js';
 import { registerMetaRoutes } from './routes/meta.js';
 import { registerReportRoutes } from './routes/reports.js';
 import { RateLimitedError, registerScanRoutes } from './routes/scans.js';
 import type { ArtifactReader, ScanStore } from './store/types.js';
 import type { ScanEventBus } from './events/bus.js';
+import type { ReadinessCheck } from './health/checks.js';
+import { createLogger, correlationIdFrom, correlationIdFromUrl } from './logging.js';
 import type { GuardOptions } from './security/ssrf.js';
 import type { ScanQueue } from './worker/queue.js';
 
@@ -46,6 +49,17 @@ export interface ServerDeps {
    * tests can probe `127.0.0.1` and a redirect chain without a network.
    */
   ssrf?: GuardOptions;
+  /**
+   * What `/readyz` proves. Empty means "nothing to check", which is honest for
+   * a server with no database rather than a green tick over an empty room.
+   */
+  readiness?: readonly ReadinessCheck[];
+  /**
+   * Override the logger. A test seam: the redaction and correlation rules are
+   * only observable in what actually reaches the transport, so a test needs to
+   * be the transport.
+   */
+  logger?: FastifyBaseLogger;
 }
 
 /**
@@ -61,9 +75,10 @@ export interface ServerDeps {
  */
 export async function buildServer(deps: ServerDeps): Promise<FastifyInstance> {
   const app = Fastify({
-    // Fastify's own logger is replaced with a configured pino instance in #20;
-    // until then the level is honoured and the output is still JSON.
-    logger: { level: deps.config.LOG_LEVEL },
+    // `loggerInstance`, not `logger`. Fastify 5 takes options under `logger`
+    // and a pre-built pino under `loggerInstance`; passing an instance to the
+    // former resolves a different overload and infers an HTTP/2 server.
+    loggerInstance: deps.logger ?? createLogger(deps.config),
     // Behind Railway's proxy the client address is in `X-Forwarded-For`, and
     // #19's per-IP limits are worthless if every request looks like it came
     // from the load balancer.
@@ -96,8 +111,24 @@ export async function buildServer(deps: ServerDeps): Promise<FastifyInstance> {
     transformObject: createJsonSchemaTransformObject({}),
   });
 
+  /**
+   * One correlation id, bound once, on every line the request produces.
+   *
+   * `correlationId = scanId` is the plan's rule. It is bound in
+   * `childLoggerFactory` rather than in an `onRequest` hook because Fastify has
+   * already written "incoming request" by the time a hook runs — and those, plus
+   * "request completed", are the two lines anyone actually greps for.
+   */
+  app.setChildLoggerFactory((logger, bindings, options, rawRequest) => {
+    const correlationId = correlationIdFromUrl(rawRequest.url);
+    return logger.child(
+      correlationId === undefined ? bindings : { ...bindings, correlationId },
+      options,
+    );
+  });
+
   app.setErrorHandler((error, request, reply) => {
-    const correlationId = correlationIdOf(request.params);
+    const correlationId = correlationIdFrom(request.params);
 
     if (error instanceof HttpError) {
       // A rate limit is a wait, not a failure, and `Retry-After` is how a
@@ -167,6 +198,7 @@ export async function buildServer(deps: ServerDeps): Promise<FastifyInstance> {
   await registerReportRoutes(app, deps);
   await registerArtifactRoutes(app, deps);
   await registerMetaRoutes(app, deps);
+  await registerHealthRoutes(app, deps);
 
   // The document itself, so a client can generate against it. `@fastify/swagger`
   // builds it from the route schemas at `ready()`; nothing here writes JSON.
@@ -176,9 +208,3 @@ export async function buildServer(deps: ServerDeps): Promise<FastifyInstance> {
   return app;
 }
 
-/** The scan id from a route's params, when it has one. Used as the correlation id. */
-function correlationIdOf(params: unknown): string | undefined {
-  if (typeof params !== 'object' || params === null) return undefined;
-  const id = (params as { id?: unknown }).id;
-  return typeof id === 'string' && id.startsWith('scan_') ? id : undefined;
-}

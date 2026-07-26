@@ -20,6 +20,14 @@ reserved that slot for.
 
 Landed:
 
+- **Health and structured logging (#20).** `/healthz` is liveness and checks
+  nothing else; `/readyz` proves Postgres *with its migrations applied*, the
+  queue, and **a real Chromium launch** — verified against a running server:
+  green with everything up, `503` with a broken Chromium while `/healthz` stays
+  `200`. Every check runs even after one fails, a hung dependency is a failed
+  one, and the Chromium result is cached on success only. pino JSON throughout,
+  `correlationId` = the scan id on every line including Fastify's own, and
+  screenshots redacted by *type* rather than by key name.
 - **Abuse controls (#19) — the gate before the URL can be shared.** SSRF guard
   with a scheme allowlist, no-credentials rule, hostname blocklist, DNS resolve
   and a verdict on **every** returned address, and **redirects followed one hop
@@ -204,9 +212,15 @@ Verified working: `pnpm install && pnpm test` green from a clean clone,
 
 ## Next up
 
-**Phase 2 — the hosted showcase.** #14–#19 are done. Next: #20
-(healthz/readyz), then #21 (Docker/Railway), #22 (R2), #23 (the scan flow),
-#24 (dogfood gate), #25 (skills + DEMO.md), #26 (screen-reader pass).
+**Phase 2 — the hosted showcase.** #14–#20 are done: the design system, the
+shell, the API, persistence, the stream, the guards and the probes. What
+remains is #21 (Docker/Railway/deploy), #22 (R2 + retention), #23 (the scan
+flow in the UI), #24 (the dogfood CI gate), #25 (`.claude/` skills + DEMO.md)
+and #26 (the manual screen-reader pass).
+
+**Nothing is deployed yet, and the demo URL does not exist.** The abuse
+controls that gate it are in place, which was the point of doing #19 before
+#21.
 
 **Without `DATABASE_URL` the server is in-memory and says so.** No queue, so no
 scan ever runs; `main.ts` warns at boot rather than letting it look durable.
@@ -266,6 +280,25 @@ comparison scorecard wants a second rule engine.
 
 ## Known gotchas
 
+- **`formatters.log` runs over Fastify's own bindings and will flatten them.**
+  A deep-copy that recurses into *every* object rebuilds it from its own
+  enumerable properties — and Fastify's request keeps `method` and `url` on the
+  prototype, so every request line came out as `req: {"id":"req-1"}` and every
+  response as `res: {}`. An `Error` loses its stack the same way. The binary
+  scrub now runs in `hooks.logMethod` (caller-supplied objects only) and only
+  recurses into arrays and *plain* objects.
+- **`correlationId` must be bound in `setChildLoggerFactory`, not an
+  `onRequest` hook.** By the time a hook runs, Fastify has already written
+  "incoming request" — and that line plus "request completed" are the two
+  anyone greps for. The factory receives the *raw* request, so the scan id is
+  read from the URL rather than from route params, which also covers every scan
+  route without listing them.
+- **Pass a pre-built pino as `loggerInstance`, not `logger`.** Fastify 5 keys
+  its overloads on that: an instance under `logger` resolves the HTTP/2 overload
+  and every route helper then fails to typecheck for reasons that mention
+  `Http2SecureServer`. `createLogger` also returns `FastifyBaseLogger` rather
+  than pino's `Logger`, or the narrower type propagates into every
+  `register*Routes` signature.
 - **The SSRF guard's preflight does not stop DNS rebinding, and says so.**
   `assertSafeUrl` resolves and judges every address at submit time and
   re-validates every redirect, which is what the acceptance asks for. It cannot

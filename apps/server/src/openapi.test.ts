@@ -74,6 +74,8 @@ describe('the generated OpenAPI document', () => {
       '/api/scans/{id}/report',
       '/api/scans/{id}/report.html',
       '/api/scans/{id}/report.sarif',
+      '/healthz',
+      '/readyz',
     ]);
   });
 
