@@ -112,6 +112,38 @@ jobs:
       - run: pnpm --filter @handrail/fixture-seeded-demo build
       - run: pnpm test:browser
 
+  # A full deterministic scan of the seeded-demo, normalised and diffed against a
+  # committed snapshot. This is the only check that sees the whole pipeline at
+  # once, so it catches what unit tests structurally cannot: a node running out
+  # of order, an event dropping out of the stream, a rollup status flipping.
+  golden-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - run: corepack enable
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      - name: Resolve the pinned Playwright version
+        id: playwright
+        run: echo "version=$(pnpm --filter @handrail/engine exec playwright --version | awk '{print $2}')" >> "$GITHUB_OUTPUT"
+
+      - name: Cache the browser download
+        id: browser-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}
+
+      - name: Install Chromium
+        run: pnpm --filter @handrail/engine exec playwright install --with-deps chromium
+
+      - run: pnpm --filter @handrail/fixture-seeded-demo build
+      - run: pnpm --filter @handrail/cli golden:scan
+
   audit:
     runs-on: ubuntu-latest
     steps:
