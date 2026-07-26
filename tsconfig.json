@@ -6,6 +6,9 @@
       "path": "./packages/schemas"
     },
     {
+      "path": "./packages/tokens"
+    },
+    {
       "path": "./packages/wcag"
     },
     {

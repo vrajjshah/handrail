@@ -6,6 +6,9 @@
       "path": "./packages/schemas/tsconfig.build.json"
     },
     {
+      "path": "./packages/tokens/tsconfig.build.json"
+    },
+    {
       "path": "./packages/wcag/tsconfig.build.json"
     },
     {

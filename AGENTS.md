@@ -14,8 +14,22 @@ writes an evidence report**, a golden snapshot guards the pipeline against drift
 and the hybrid path replays real recorded model responses in CI with no
 credentials. Nothing in the tests or CI reaches a model provider.
 
+**Phase 2 has started.** `docs/DESIGN.md` and `@handrail/tokens` are in (#14) —
+the design system exists before the first component, which is what the plan
+reserved that slot for.
+
 Landed:
 
+- `@handrail/tokens` + `docs/DESIGN.md` (#14) — the design system as *measured*
+  values. 44 colour-role pairs × 2 themes = **88 contrast pairs, all passing**,
+  computed with the same WCAG relative-luminance arithmetic the engine applies to
+  other people's sites. `theme.css` (Tailwind 4 `@theme`, both themes, the global
+  focus ring, forced-colors and reduced-motion base rules) and three sections of
+  `DESIGN.md` are **generated and committed**, with `generated.test.ts` failing on
+  drift — drilled in both directions. DESIGN.md specifies the browser/viewport/
+  zoom matrix, keyboard pattern per component, landmark and live-region rules,
+  four screens, five state patterns and the copy rules. ADR-0006 records the
+  Phase 2 freshness check.
 - **Phase 1 audited against the plan's own acceptance, and two gaps closed** that
   the issue checkboxes had hidden: the CLI had never actually scanned a public
   site, and no recall baseline existed. Both done — see below.
@@ -144,8 +158,10 @@ Verified working: `pnpm install && pnpm test` green from a clean clone,
 
 ## Next up
 
-**Phase 2 — the hosted showcase.** Start with `docs/DESIGN.md` + Tailwind tokens
-(#14), which the plan makes the first slice, before any component exists.
+**Phase 2 — the hosted showcase.** #14 is done, so the design system exists.
+Next is `apps/web`'s shell on React Aria Components (#15), and then the server
+chain in dependency order: #16 (Fastify + Zod + OpenAPI) → #18 (Drizzle +
+pg-boss) → #17 (SSE replay) → #19 (abuse controls) → #20 (healthz/readyz).
 
 **Phase 1 is genuinely done** — audited against the plan's acceptance row and
 §Verification per phase, not just the issue list. All twelve issues closed, three
@@ -201,6 +217,39 @@ comparison scorecard wants a second rule engine.
 
 ## Known gotchas
 
+- **Contrast ratio cannot tell you two colours look alike.** It is a luminance
+  relationship between a foreground and *its background*, so two foregrounds can
+  each clear 4.5:1 against the page and measure **1.09:1 against each other** —
+  which is exactly what the accent teal and the AI-badge violet did. The property
+  that applies between two semantic colours is hue separation (`hueDistance`),
+  and it is a *secondary* channel: every tier and source badge carries its word,
+  so nothing in the UI depends on telling two hues apart. Do not "fix" a
+  distinguishability problem by raising a contrast requirement; it measures
+  something else.
+- **`--color-border` is not decorative, on purpose.** The token set has no
+  exempt colour: `border` is subtle but still clears 3:1, so there is no
+  `requirement: 'decorative'` escape hatch for a value that failed. If a new
+  pair is needed it goes in `REQUIRED_PAIRS` and gets measured — a combination
+  used but not listed is the hole the list exists to close.
+- **The focus ring's `outline-offset` is load-bearing, not decoration.** The
+  offset puts the ring on the surface *behind* the control, which is why
+  `focus-ring` only has to be measured against the four surfaces instead of
+  against every button fill. Switching to `box-shadow` would also break
+  forced-colors mode, where a focus indicator matters most; `css.test.ts`
+  asserts the string `box-shadow` never appears.
+- **A byte-exact comparison against a committed text file fails on Windows
+  without `.gitattributes`.** The Windows runner checks out CRLF, so
+  `readFile(theme.css) === renderThemeCss()` compares identical content and
+  reports a mismatch. The repo now pins `* text=auto eol=lf`, which is the fix —
+  normalising `\r\n` away inside the test instead would let a genuinely
+  CRLF-committed file pass and then churn on the next `tokens:build`. This cost
+  one red Windows job; every future generated artifact inherits the fix.
+- **`theme.css` and three sections of `docs/DESIGN.md` are generated.**
+  `pnpm --filter @handrail/tokens tokens:build` regenerates both;
+  `generated.test.ts` fails when either has drifted. Per the "a test that imports
+  a generator runs the generator" rule, that test imports paths from `paths.ts`,
+  **never** from `scripts/build-tokens.ts` (which ends in `await main()`).
+  Drilled in both directions.
 - **`/\s*(x)\s*/g` over page content is a denial of service, not a slow regex.**
   The pattern is ambiguous on a whitespace run — the engine retries `\s*` from
   every position inside it — so it is quadratic: 1.6s for 60,000 spaces, and the

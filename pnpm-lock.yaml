@@ -146,6 +146,8 @@ importers:
         specifier: ^4.4.3
         version: 4.4.3
 
+  packages/tokens: {}
+
   packages/wcag:
     dependencies:
       '@handrail/schemas':
