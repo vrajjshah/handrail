@@ -1,10 +1,16 @@
-import { scanId } from '@handrail/schemas';
+import { elementId, scanId } from '@handrail/schemas';
 import { describe, expect, it } from 'vitest';
 
 import { always, capture, element, scriptedClient, testLedger } from '../__test__/factories.js';
+import type { ElementRecord } from '../capture/types.js';
 import type { TextJudgeCandidate } from '../judge/text-judge-schema.js';
 import { bestMatchRatio, boundedLevenshtein, normalizeMarkup, similarity } from './fuzzy.js';
-import { DOM_QUOTE_THRESHOLD, canonicalMarkup, groundCandidate } from './grounding.js';
+import {
+  DOM_QUOTE_THRESHOLD,
+  canonicalMarkup,
+  groundCandidate,
+  resolveCitedValue,
+} from './grounding.js';
 import { buildHallucinationLedger } from './hallucination-ledger.js';
 import { dedupeGrounded, runVerdictPipeline, verificationFor } from './pipeline.js';
 import { headingOutline, recheckCandidate } from './rechecks.js';
@@ -405,5 +411,55 @@ describe('the hallucination ledger', () => {
       byReason: { 'unknown-element': 1, 'recheck-refuted': 1 },
       byStage: { grounding: 1, recheck: 1 },
     });
+  });
+});
+
+describe('resolveCitedValue — what a claim may be grounded against (#69)', () => {
+  const cited = {
+    elemId: elementId('e1'),
+    ordinal: 0,
+    xpath: '/html[1]/body[1]/a[1]',
+    selector: 'a',
+    tag: 'a',
+    role: 'link',
+    accessibleName: 'Click here',
+    bbox: null,
+    visible: true,
+    focusable: true,
+    tabIndex: 0,
+    text: 'Click here',
+    attributes: { href: '#menu' },
+    style: {},
+  } as unknown as ElementRecord;
+
+  it('resolves a real HTML attribute', () => {
+    expect(resolveCitedValue(cited, 'href')).toBe('#menu');
+  });
+
+  it('resolves tag, text, role and accessibleName — all equally in the snapshot', () => {
+    // The bug #69 fixed: a truthful claim about `text` was treated as a
+    // fabrication purely because the value lives outside `.attributes`.
+    expect(resolveCitedValue(cited, 'tag')).toBe('a');
+    expect(resolveCitedValue(cited, 'text')).toBe('Click here');
+    expect(resolveCitedValue(cited, 'role')).toBe('link');
+    expect(resolveCitedValue(cited, 'accessibleName')).toBe('Click here');
+  });
+
+  it('reports a genuinely absent attribute as absent', () => {
+    // Still the behaviour that rejected the real model's `alt=""` claim on an
+    // image carrying no alt at all — widening what is checkable is not the same
+    // as checking less.
+    expect(resolveCitedValue(cited, 'alt')).toBeUndefined();
+    expect(resolveCitedValue(cited, 'invented')).toBeUndefined();
+  });
+
+  it('treats a null element field as absent', () => {
+    const unnamed = { ...cited, accessibleName: null } as unknown as ElementRecord;
+    expect(resolveCitedValue(unnamed, 'accessibleName')).toBeUndefined();
+  });
+
+  it('lets a real attribute win over the field of the same name', () => {
+    const odd = { ...cited, attributes: { text: 'literal attribute' } } as unknown as ElementRecord;
+    expect(resolveCitedValue(odd, 'text')).toBe('literal attribute');
   });
 });
