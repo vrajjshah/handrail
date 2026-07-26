@@ -280,6 +280,14 @@ comparison scorecard wants a second rule engine.
 
 ## Known gotchas
 
+- **An event emitted from inside a node that then throws may never be
+  delivered.** `phase.failed` was written to the node's stream writer
+  immediately before the node rethrew, and whether LangGraph flushes that chunk
+  before propagating the error is a race — the `seq` is spent either way, so the
+  stream ends up with a hole. It passed locally every time and failed in CI.
+  Both `phase.failed` and `scan.failed` are now emitted in `streamScan`'s catch,
+  on the path that yields directly. **Anything a node needs to say on its way
+  out belongs outside the node.**
 - **`formatters.log` runs over Fastify's own bindings and will flatten them.**
   A deep-copy that recurses into *every* object rebuilds it from its own
   enumerable properties — and Fastify's request keeps `method` and `url` on the
