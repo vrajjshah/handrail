@@ -249,7 +249,7 @@ real Chromium, `https://example.com`):
 | UI passes its own scan **in CI** | the scan passes (0 findings, 5 pass-verified); it is **not a gate** | #24 |
 | Manual VoiceOver pass | **not started** — a human task | #26 |
 | deploy.yml smoke + rollback rehearsed | **done** — both rehearsed live, OPERATIONS.md §5 | #21 |
-| `docker compose up` full scan **on Windows** | compose works and runs a real scan; **the Windows half is unverified** — no Windows machine here | the owner |
+| `docker compose up` full scan **on Windows** | compose works and runs a real scan on macOS; the Windows half is **backlogged, not blocking** | #88 |
 
 **Three gaps worth knowing before picking up #21–#23:**
 
@@ -314,10 +314,13 @@ comparison scorecard wants a second rule engine.
   live: a container that could not launch Chromium stayed `DEPLOYING`, went
   `FAILED`, and never took traffic — the previous version served throughout. A
   liveness-only gate would have promoted it.
-- **A green `/readyz` does not mean the demo works.** Also rehearsed live: with
-  `SERVICE_ROLE=api` every probe returned 200 and no scan ever finished, because
-  nothing consumed the queue. Only the smoke gate caught it. That is the whole
-  argument for scanning our own landing page after a deploy.
+- **A green `/readyz` does not mean the demo works — and neither does a
+  completed scan.** Rehearsed live twice. With `SERVICE_ROLE=api` every probe
+  returned 200 and no scan finished, because nothing consumed the queue. Then
+  with a worker regression that never saved the report, every probe returned 200
+  **and the scan reported `completed`** — only fetching the artifact caught it
+  (409). That is why the smoke validates the *report* rather than the status.
+  OPERATIONS.md §5 has both transcripts.
 - **An event emitted from inside a node that then throws may never be
   delivered.** `phase.failed` was written to the node's stream writer
   immediately before the node rethrew, and whether LangGraph flushes that chunk

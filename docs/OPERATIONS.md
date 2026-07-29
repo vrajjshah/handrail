@@ -115,7 +115,11 @@ Railway keeps every previous image. Roll back to the last good one:
   railway up --service handrail --ci
   ```
 
-  A rebuild, so slower — but it needs nothing but the CLI.
+  A rebuild, so slower — but it needs nothing but the CLI. **Rehearsed for real
+  on 2026-07-29** — see §5.4.
+
+  If `railway up` is refused or unavailable, `railway deployment up` is the same
+  command under the subcommand tree.
 
 Then put the fix through the normal path: branch → PR → CI → merge. **Do not
 hot-fix `main` to chase a rollback**; the deploy pipeline is gated on CI for the
@@ -176,9 +180,42 @@ smoke: report valid: evaluated 6 of 55 criteria, 0 finding(s)
 smoke: deployment is healthy
 ```
 
-**Not yet rehearsed:** the image rollback in §4.2. The break rehearsed here was
-configuration, so reverting configuration is what was actually executed. Rehearse
-§4.2 the next time there is a real code-caused failure, and record it here.
+### 5.4 A code-caused break, and the image rollback (§4.2)
+
+The one §5.1–5.3 could not cover: those broke *configuration*, so reverting
+configuration is all they proved. This broke **code**.
+
+`runScanJob` was edited so the scan completes and the report is never saved — a
+worker regression, uncommitted, deployed straight from the working tree with
+`railway up`.
+
+- The deployment went `SUCCESS` and took traffic.
+- `/healthz` `200`, `/readyz` `200`, the landing page `200`.
+- **The scan itself reported `completed`.** This is the sharpest version of the
+  point: not only did every probe pass, the scan said it had worked.
+- The smoke gate failed anyway, at the step after:
+
+  ```
+  smoke: scan completed in phase report
+  smoke: FAILED at report — expected 200, got 409
+  Exit status 1
+  ```
+
+**Rollback**, per §4.2's CLI path: `git checkout --` the offending file to
+return the tree to the last good commit, then redeploy. The same gate confirmed
+the fix:
+
+```
+smoke: report valid: evaluated 6 of 55 criteria, 0 finding(s)
+smoke: deployment is healthy
+```
+
+Deployment history afterwards: the good build `SUCCESS`, the broken one
+`REMOVED`.
+
+**Both rollback paths in §4 have now been executed for real.** Note what §5.4
+adds over §5.2: a deployment can report a *completed scan* and still be broken,
+so the gate has to validate the artifact rather than the status.
 
 ---
 
