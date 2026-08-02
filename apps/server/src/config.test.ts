@@ -4,7 +4,22 @@ import { fileURLToPath } from 'node:url';
 
 import { describe, expect, it } from 'vitest';
 
-import { ConfigError, ConfigSchema, loadConfig, runsScans, servesHttp } from './config.js';
+import {
+  ConfigError,
+  ConfigSchema,
+  assertRunnable,
+  loadConfig,
+  r2ConfigFrom,
+  runsScans,
+  servesHttp,
+} from './config.js';
+
+const R2_ENV = {
+  R2_ACCOUNT_ID: 'acct',
+  R2_ACCESS_KEY_ID: 'key',
+  R2_SECRET_ACCESS_KEY: 'secret',
+  R2_BUCKET: 'handrail-artifacts',
+};
 
 const ENV_EXAMPLE = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -48,6 +63,37 @@ describe('service roles', () => {
   });
 });
 
+describe('R2 credentials', () => {
+  it('is a valid deployment with none of them set', () => {
+    // No object store means no screenshots, and the boot log plus `/readyz`
+    // both say so. That is a smaller deployment, not a broken one.
+    expect(r2ConfigFrom(loadConfig({}))).toBeUndefined();
+    expect(() => assertRunnable(loadConfig({}))).not.toThrow();
+  });
+
+  it('resolves all four together', () => {
+    expect(r2ConfigFrom(loadConfig(R2_ENV))).toEqual({
+      accountId: 'acct',
+      accessKeyId: 'key',
+      secretAccessKey: 'secret',
+      bucket: 'handrail-artifacts',
+    });
+  });
+
+  it.each(Object.keys(R2_ENV))('fails at boot when %s alone is missing', (key) => {
+    // The failure this prevents is invisible: a container that starts
+    // perfectly, scans happily, and produces reports with no evidence in them
+    // for as long as nobody opens one.
+    const partial = { ...R2_ENV } as Record<string, string>;
+    delete partial[key];
+    const config = loadConfig(partial);
+
+    expect(() => r2ConfigFrom(config)).toThrow(ConfigError);
+    expect(() => r2ConfigFrom(config)).toThrow(new RegExp(key));
+    expect(() => assertRunnable(config)).toThrow(ConfigError);
+  });
+});
+
 describe('.env.example', () => {
   it('documents every variable the schema reads', async () => {
     // The contract, enforced. A variable the schema knows about and the example
@@ -71,15 +117,19 @@ describe('.env.example', () => {
     }
   });
 
-  it('ships no value for the admin token', async () => {
-    // Documented, deliberately unset. A default admin token is a published one.
-    const text = await readFile(ENV_EXAMPLE, 'utf8');
-    const active = text
-      .split('\n')
-      .map((line) => line.trim())
-      .filter((line) => !line.startsWith('#'));
-    expect(active.some((line) => line.startsWith('ADMIN_TOKEN='))).toBe(false);
-  });
+  it.each(['ADMIN_TOKEN', 'R2_ACCESS_KEY_ID', 'R2_SECRET_ACCESS_KEY'])(
+    'ships no value for %s',
+    async (key) => {
+      // Documented, deliberately unset. A credential with a value in a
+      // committed example file is a published credential.
+      const text = await readFile(ENV_EXAMPLE, 'utf8');
+      const active = text
+        .split('\n')
+        .map((line) => line.trim())
+        .filter((line) => !line.startsWith('#'));
+      expect(active.some((line) => line.startsWith(`${key}=`))).toBe(false);
+    },
+  );
 
   it('is itself a valid environment', async () => {
     const text = await readFile(ENV_EXAMPLE, 'utf8');

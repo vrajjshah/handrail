@@ -16,6 +16,8 @@
     "smoke": "tsx src/scripts/smoke-main.ts"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1101.0",
+    "@aws-sdk/s3-request-presigner": "^3.1101.0",
     "@fastify/static": "^10.1.2",
     "@fastify/swagger": "^9.8.1",
     "@handrail/engine": "workspace:*",
