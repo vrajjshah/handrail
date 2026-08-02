@@ -47,9 +47,10 @@ export class MemoryArtifactCatalog implements ArtifactCatalog {
       entry.id,
       existing === undefined
         ? entry
-        : // Same rule as the Postgres upsert: keep the first producer, take the
-          // later expiry. Written twice because they are two implementations of
-          // one contract, and `catalog.test.ts` runs both through it.
+        : // Same rule as the Postgres upsert's `greatest(...)`: keep the first
+          // producer, take the later expiry. Stated twice because these are two
+          // implementations of one contract — `artifacts.test.ts` holds this one
+          // to it and `catalog.pg.test.ts` holds the other.
           { ...existing, expiresAt: laterOf(existing.expiresAt, entry.expiresAt) },
     );
     return Promise.resolve();

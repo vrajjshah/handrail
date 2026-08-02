@@ -63,9 +63,14 @@ describe('the retention policy', () => {
   });
 });
 
-describe.each<[string, () => ArtifactCatalog]>([
-  ['MemoryArtifactCatalog', () => new MemoryArtifactCatalog()],
-])('%s', (_name, make) => {
+/**
+ * The in-memory half of the catalog contract. `catalog.pg.test.ts` holds the
+ * Postgres one to the same expectations against a real database, because the
+ * upsert rule is easy to state and easy to implement differently twice.
+ */
+describe('MemoryArtifactCatalog', () => {
+  const make = (): ArtifactCatalog => new MemoryArtifactCatalog();
+
   const row = (over: { expiresAt?: Date } = {}) => ({
     id: artifactId('full_a1b2c3d4'),
     scanId: SCAN,

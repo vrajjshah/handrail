@@ -8,9 +8,9 @@ import type { ArtifactCatalog, ArtifactRecord } from './catalog.js';
 /**
  * The durable {@link ArtifactCatalog} — #18's `artifacts` table, finally used.
  *
- * Same contract as the in-memory one, and `catalog.test.ts` plus
- * `catalog.pg.test.ts` run the two through the same expectations, because the
- * upsert rule is the sort of thing that is easy to state and easy to implement
+ * Same contract as the in-memory one, and the two are held to the same
+ * expectations in `artifacts.test.ts` and `catalog.pg.test.ts` — the upsert
+ * rule is the sort of thing that is easy to state and easy to implement
  * differently twice.
  */
 export class PostgresArtifactCatalog implements ArtifactCatalog {
