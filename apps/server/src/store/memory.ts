@@ -181,4 +181,15 @@ export class MemoryArtifactReader implements ArtifactReader {
     if (bytes === undefined) return Promise.reject(new ArtifactNotFoundError(id));
     return Promise.resolve(bytes);
   }
+
+  /**
+   * Nothing to sign against: there is no storage to hand a client at, so the
+   * route serves the bytes itself. That is the local-development shape, and it
+   * is the reason the byte-serving branch stays exercised by the default test
+   * suite rather than only by whoever has R2 credentials.
+   */
+  signedUrl(id: ArtifactId): Promise<string | undefined> {
+    if (!this.items.has(id)) return Promise.reject(new ArtifactNotFoundError(id));
+    return Promise.resolve(undefined);
+  }
 }
