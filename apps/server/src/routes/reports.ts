@@ -1,4 +1,4 @@
-import { renderReportHtml, renderSarif } from '@handrail/engine';
+import { buildEvidenceImages, renderReportHtml, renderSarif } from '@handrail/engine';
 import { ReportSchema, scanId as toScanId, type Report } from '@handrail/schemas';
 import type { FastifyInstance } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
@@ -66,10 +66,20 @@ export function registerReportRoutes(app: FastifyInstance, deps: ServerDeps): Pr
     },
     async (request, reply) => {
       const report = await reportOrThrow(deps.store, request.params.id);
-      // Evidence images are inlined by the CLI from a local artifact store; the
-      // hosted renderer serves them from /api/artifacts instead, which #22
-      // wires up once R2 is behind the store.
-      return reply.type('text/html; charset=utf-8').send(renderReportHtml(report));
+
+      // Inlined as data URIs, exactly as the CLI does it — *not* as signed URLs.
+      // This file's whole point is that it survives being emailed or attached
+      // to a ticket, and a signed URL inside it would be a broken image five
+      // minutes later. Signed URLs are for the live UI, which can ask for a new
+      // one; a document that is meant to be kept has to carry its evidence.
+      const images = await buildEvidenceImages(report, { store: deps.artifacts });
+
+      return reply.type('text/html; charset=utf-8').send(
+        renderReportHtml(report, {
+          images,
+          candidatesRejected: report.scan.counts.candidatesRejected,
+        }),
+      );
     },
   );
 
