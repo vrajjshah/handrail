@@ -47,6 +47,13 @@ pnpm --filter @handrail/server smoke https://<host>
 | `postgres` | The database is unreachable, or the migrations have not run. `connected, schema present` requires both. | Check the Postgres service in Railway. If it is up, the pre-deploy migration failed — see the deploy logs. |
 | `queue` | pg-boss cannot reach its schema. Almost always the same cause as `postgres`. | As above. |
 | `chromium` | The browser will not launch: a bad image, a wrong `PLAYWRIGHT_BROWSERS_PATH`, or the container is out of memory. | Check the deploy logs and the service's memory graph. |
+| `object-storage` | The R2 bucket is unreachable or the credentials are wrong. Scans will still complete — and every report they produce will have no evidence images. | Check the four `R2_*` service variables against Cloudflare, then §8. |
+
+`object-storage` is only present when R2 is configured. A deployment with no
+object storage is **ready**: it takes no screenshots, warns about it at boot,
+and says so here by the check's absence. A deployment that was told where its
+bucket is and cannot reach it is **not** ready, because the reports it produces
+would be missing the evidence they exist to carry.
 
 Every check runs even after one fails, so the response is the whole picture
 rather than the first thing to go wrong.
@@ -82,6 +89,11 @@ railway up --service handrail --ci
 | Repo → Variables → Actions | `PUBLIC_URL` | The deployment's URL, so the smoke knows what to test. |
 | Railway → service variables | `DATABASE_URL` | Set as the reference `${{Postgres.DATABASE_URL}}`, never a literal — the value then never leaves the platform. |
 | Railway → service variables | `ADMIN_TOKEN` | Optional; unset means nothing can bypass the rate limits, and the server says so at boot. |
+| Railway → service variables | `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET` | Where screenshots go. **All four or none** — a partial set fails at boot naming what is missing. See §8. |
+
+Note what is *not* in that list: nothing R2-shaped is a GitHub secret. CI holds
+no cloud credentials at all, the same way it holds no model API key, and the
+`*.r2.test.ts` suite is deliberately not a CI job (§8).
 
 ---
 
@@ -235,10 +247,101 @@ every scan the deployment has run.
 
 ## 7. Data
 
-- **Screenshots may contain personal data.** They are never logged (redacted by
-  type, not just by key) and get a 14-day life once R2 lands (#22). Today the
-  hosted scan takes none at all.
+- **Screenshots may contain personal data.** They live in a private R2 bucket,
+  are deleted 14 days after capture by the bucket's own lifecycle rule (§8),
+  and are never logged — neither the bytes (redacted by type, not by key name)
+  nor the signed URLs that fetch them (redacted by recognising
+  `X-Amz-Signature` in the value, not by key name either).
+- **A signed URL is a bearer capability.** Anyone holding one can fetch the
+  screenshot until it expires, with no credential of their own. They live five
+  minutes, are never cached, and are minted per request — see §8.
 - `client_ip` is stored on `scans` for rate limiting and abuse forensics. It is
   not in `ScanRecord`, so it cannot reach a response body.
-- Postgres holds everything: scans, events, findings, and the queue. Railway's
-  managed backups are the recovery story; a lost scan is cheap to re-run.
+- Postgres holds everything else: scans, events, findings, the `artifacts`
+  pointers, and the queue. Railway's managed backups are the recovery story; a
+  lost scan is cheap to re-run.
+
+---
+
+## 8. The artifact bucket
+
+Screenshots are the only thing this service stores outside Postgres, and the
+only thing it stores that may be somebody else's personal data. Three rules
+govern it, and they are worth knowing before touching anything.
+
+**The bucket is private.** There is no public development URL and no custom
+domain in front of it. Every read is a presigned GET that this service mints,
+valid for five minutes. `GET /api/artifacts/:id` no longer serves bytes — it
+`302`s to one of those URLs. The stable, unsigned path is what a report embeds;
+the capability it hands out is per-request and short-lived.
+
+**Retention is enforced by the bucket, not by the application.** A 14-day
+expiration lifecycle rule on the `artifacts/` prefix is what actually deletes a
+screenshot. It keeps working if this service is dead, mis-deployed, or rolled
+back to a version that never heard of retention — which an application-side
+sweeper would not.
+
+**The application's job is to agree with it.** Three things hold that:
+
+1. `artifacts.expires_at` is `created_at + 14 days`, written on every row.
+2. The API returns `410 Gone` the moment `expires_at` passes, without waiting
+   for Cloudflare to get round to the delete, and it clamps every signed URL so
+   the capability cannot outlive the artifact. A lifecycle rule somebody
+   deleted cannot quietly extend retention in practice.
+3. `pnpm test:r2` reads the bucket's real lifecycle configuration and fails
+   when it does not match `ARTIFACT_RETENTION_DAYS`.
+
+### Setting it up, once
+
+In the Cloudflare dashboard, R2 → the bucket:
+
+1. Create the bucket. **Do not** enable the public development URL and do not
+   attach a custom domain.
+2. Settings → Object lifecycle rules → add a rule: prefix `artifacts/`, "delete
+   uploaded objects" after **14** days.
+3. Manage API tokens → create an **Object Read & Write** token scoped to this
+   bucket only. That token's access key id and secret are two of the four
+   service variables; the account id is in the R2 overview.
+
+### Verifying it
+
+```bash
+R2_ACCOUNT_ID=… R2_ACCESS_KEY_ID=… R2_SECRET_ACCESS_KEY=… R2_BUCKET=… pnpm test:r2
+```
+
+Seven checks: the bucket is reachable, bytes round-trip, a signed URL fetches
+them, an **unsigned** one is refused, a signature stops working when it
+expires, and — the one this suite exists for — the bucket's lifecycle rule is
+the same number the application believes it is.
+
+**This is not a CI job and must not become one.** CI holds no cloud
+credentials. Everything provable without a bucket is proved in
+`apps/server/src/artifacts/artifacts.test.ts` against an in-memory object
+store, which runs in the ordinary three-OS `unit` job. Run `test:r2` by hand
+after changing the bucket, the retention constant, or the R2 client.
+
+### Verifying it on the deployment
+
+**The post-deploy smoke will not catch a broken R2.** It scans the deployment's
+own landing page, which has zero findings by design — and a screenshot is only
+attached as evidence to a finding that has a bounding box. So a healthy
+deployment and a mis-configured one produce the same smoke-passing report.
+Extending the smoke to demand an artifact id would fail on a *working* deploy.
+
+What does prove it, by hand, once after setting the variables:
+
+```bash
+curl -s https://<host>/readyz | jq '.checks[] | select(.name=="object-storage")'
+railway connect Postgres -- -c 'select count(*), min(expires_at) from artifacts'
+```
+
+Then scan a public site that actually has findings, and open its report:
+
+```bash
+curl -sS -X POST https://<host>/api/scans -H 'content-type: application/json' \
+  -H "x-admin-token: $ADMIN_TOKEN" -d '{"url":"https://example.com"}' | jq -r .scan.id
+curl -sSI "https://<host>/api/artifacts/<id-from-the-report>"   # expect 302 + no-store
+```
+
+Three things to see: `object-storage` green, rows in `artifacts` with an
+`expires_at` fourteen days out, and `report.html` with images in it.
