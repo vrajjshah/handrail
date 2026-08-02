@@ -5,7 +5,12 @@ import type { ArtifactStore } from '../capture/artifacts.js';
 import type { EvidenceImage } from './html.js';
 
 export interface EvidenceImageOptions {
-  store: ArtifactStore;
+  /**
+   * Read-only on purpose. Rendering a report never writes an artifact, and the
+   * hosted server hands this a reader that can only read — narrowing the
+   * parameter is what lets it, rather than a cast at the call site.
+   */
+  store: Pick<ArtifactStore, 'get'>;
   /** Longest edge of an embedded crop, in pixels. */
   maxWidth?: number;
   /** Context to keep around the element, in CSS pixels. */
