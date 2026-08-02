@@ -271,17 +271,25 @@ real Chromium, `https://example.com`):
 
 **Three gaps worth knowing before picking up #23:**
 
-1. **#22 has not been rehearsed against the live deployment.** The code path is
-   covered end to end without credentials and `pnpm test:r2` covers the bucket,
-   but nobody has yet watched `/readyz` report `object-storage`, run a real
-   hosted scan and opened its `report.html` with images in it. The four `R2_*`
-   service variables were already set on Railway before this landed, so the
-   first deploy of `main` after the merge starts writing screenshots by itself —
-   and if the credentials or the bucket are wrong, the new `object-storage`
-   readiness check fails and Railway keeps the previous container serving rather
-   than promoting a deployment that would produce evidence-free reports. Confirm
-   it by hand anyway, before #23 builds a report screen on top of it.
-   OPERATIONS.md §8 is the runbook.
+1. **#22 is merged and not deployed — and `deploy.yml` cannot deploy it.**
+   The code path is covered end to end without credentials and `pnpm test:r2`
+   covers the bucket, but nothing has yet run against the live service. The
+   blocker is not #22: **`RAILWAY_TOKEN` has never been set as a GitHub Actions
+   secret**, so every `Deploy` run since the workflow landed has failed at its
+   first step with `RAILWAY_TOKEN is not set`, and the live deployment is
+   whatever was last pushed by hand with `railway up`. Confirmed on 2026-08-01:
+   `/readyz` on production answers with three checks and no `object-storage`,
+   which is the pre-#22 image. OPERATIONS.md §3 lists the secret; nobody added
+   it. Tracked as [#91](https://github.com/vrajjshah/handrail/issues/91) — it needs the
+   repo owner, not a session.
+
+   Once it *is* deployed, the four `R2_*` service variables are already on the
+   Railway service, so screenshots start being written with no further
+   configuration; and if the credentials or the bucket are wrong the new
+   `object-storage` readiness check fails and Railway keeps the previous
+   container serving rather than promoting a deployment that would produce
+   evidence-free reports. Confirm by hand anyway, before #23 builds a report
+   screen on top of it. OPERATIONS.md §8 is the runbook.
 2. **`eval_runs` exists and is unused.** Deliberate — the table is cheap now and
    awkward to retrofit around live data. Phase 3 fills it.
 3. **DNS rebinding is not covered** by the SSRF preflight (gotcha below). The

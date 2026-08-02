@@ -82,9 +82,16 @@ railway up --service handrail --ci
 
 ### What the pipeline needs, once
 
+> **As of 2026-08-01 this table is a plan, not a description.** `RAILWAY_TOKEN`
+> was never added, so every `Deploy` run has failed at its first step and the
+> live deployment is whatever was last pushed by hand with `railway up`.
+> Tracked as [#91](https://github.com/vrajjshah/handrail/issues/91); it needs a
+> credential only the repo owner can mint. Until then, deploying means the
+> manual `railway up` below.
+
 | Where | Name | Why |
 | --- | --- | --- |
-| Repo → Secrets → Actions | `RAILWAY_TOKEN` | A Railway **project token**, from the project's Settings → Tokens. The only secret the workflow needs. |
+| Repo → Secrets → Actions | `RAILWAY_TOKEN` | A Railway **project token**, from the project's Settings → Tokens. The only secret the workflow needs. **Not set — see the note above.** |
 | Repo → Secrets → Actions | `ADMIN_TOKEN` | Optional. Lets the smoke bypass the rate limit rather than spending a visitor's three-an-hour. Must match the service variable. |
 | Repo → Variables → Actions | `PUBLIC_URL` | The deployment's URL, so the smoke knows what to test. |
 | Railway → service variables | `DATABASE_URL` | Set as the reference `${{Postgres.DATABASE_URL}}`, never a literal — the value then never leaves the platform. |
