@@ -20,6 +20,23 @@ reserved that slot for.
 
 Landed:
 
+- **R2 artifact storage, and the hosted scan finally takes screenshots (#22).**
+  Until this issue `runScanJob` passed no `ArtifactStore`, so `captureState`
+  skipped screenshots entirely, the `artifacts` table had never held a row, and
+  every hosted `report.html` was evidence-free. Now: a per-scan
+  `ScanArtifactStore` writes content-addressed PNGs to a private R2 bucket under
+  `artifacts/` and a catalog row beside them, and the hosted report inlines its
+  evidence images as data URIs exactly as the CLI does. **`/api/artifacts/:id`
+  stopped being a byte proxy and became a redirect issuer** — `302` to a
+  five-minute presigned URL, `no-store`, clamped so a capability can never
+  outlive the artifact. **Retention is the bucket's 14-day lifecycle rule, not
+  ours**; the app's job is to agree with it, held by `expires_at` on every row,
+  a `410 Gone` the moment it passes, and a credential-gated `pnpm test:r2` that
+  reads the real lifecycle configuration and fails on divergence. Signed URLs
+  are redacted from logs **by recognising `X-Amz-Signature` in the value**,
+  the same by-type-not-by-key rule the Buffer scrub already used. CI needs no R2
+  credentials and gained no job — everything else runs against an in-memory
+  object store in the ordinary three-OS `unit` suite.
 - **The deploy pipeline, and a live deployment (#21).** One Dockerfile on the
   Playwright base at the pinned tag, `SERVICE_ROLE` picking the role, compose
   parity verified by running a real scan inside the container, and
@@ -219,9 +236,9 @@ Verified working: `pnpm install && pnpm test` green from a clean clone,
 
 ## Next up
 
-**Phase 2: #14–#21 are merged, #22–#26 are not.** Audited on 2026-07-26 against
+**Phase 2: #14–#22 are merged, #23–#26 are not.** Audited on 2026-07-26 against
 the plan's own Phase 2 acceptance row and §Verification per phase — not the
-issue checkboxes.
+issue checkboxes; #22 added on 2026-08-01.
 
 **What the audit could verify, live, today** (a real server, real Postgres,
 real Chromium, `https://example.com`):
@@ -242,6 +259,7 @@ real Chromium, `https://example.com`):
 | Acceptance clause | State | Owner |
 |---|---|---|
 | Public URL | **live** — the shell and the API are deployed | #21 |
+| Shareable evidence report | screenshots are captured, stored and served through signed expiring URLs; `report.html` inlines them. **Not yet rehearsed against the live deployment** — see below | #22 |
 | Paste a site, watch it stream | **not started** — no scan screen | #23 |
 | Scan survives restart | **done**, proven | #18 |
 | SSRF attempts rejected | **done**, proven | #19 |
@@ -251,17 +269,24 @@ real Chromium, `https://example.com`):
 | deploy.yml smoke + rollback rehearsed | **done** — both rehearsed live, OPERATIONS.md §5 | #21 |
 | `docker compose up` full scan **on Windows** | compose works and runs a real scan on macOS; the Windows half is **backlogged, not blocking** | #88 |
 
-**Three gaps worth knowing before picking up #21–#23:**
+**Three gaps worth knowing before picking up #23:**
 
-1. **The hosted scan takes no screenshots.** `runScanJob` passes no
-   `ArtifactStore`, and the Postgres runtime still uses `MemoryArtifactReader`,
-   so the `artifacts` table has never had a row and `report.html` from the API
-   has no evidence images. That is #22's job, but #23's report screen depends on
-   it.
+1. **#22 has not been rehearsed against the live deployment.** The code path is
+   covered end to end without credentials and `pnpm test:r2` covers the bucket,
+   but nobody has yet watched `/readyz` report `object-storage`, run a real
+   hosted scan and opened its `report.html` with images in it. The four `R2_*`
+   service variables were already set on Railway before this landed, so the
+   first deploy of `main` after the merge starts writing screenshots by itself —
+   and if the credentials or the bucket are wrong, the new `object-storage`
+   readiness check fails and Railway keeps the previous container serving rather
+   than promoting a deployment that would produce evidence-free reports. Confirm
+   it by hand anyway, before #23 builds a report screen on top of it.
+   OPERATIONS.md §8 is the runbook.
 2. **`eval_runs` exists and is unused.** Deliberate — the table is cheap now and
    awkward to retrofit around live data. Phase 3 fills it.
 3. **DNS rebinding is not covered** by the SSRF preflight (gotcha below). The
-   fix belongs with #21, where the browser is launched.
+   fix belongs with the browser launch, and is still unowned now that #21 has
+   shipped without it.
 
 **Phase 1 is genuinely done** — audited against the plan's acceptance row and
 §Verification per phase, not just the issue list. All twelve issues closed, three
@@ -293,6 +318,65 @@ comparison scorecard wants a second rule engine.
 
 ## Known gotchas
 
+- **The post-deploy smoke cannot prove #22, and was deliberately not extended
+  to try.** `attachScreenshotEvidence` only attaches a screenshot to a finding
+  that has a bbox, and the smoke scans the deployment's *own* landing page —
+  which has **0 findings**, by #15's design. So a perfectly working R2 produces
+  a smoke-passing report with no artifact references in it. Screenshots *are*
+  still written (the capture puts them whatever the findings say), so the
+  evidence is `select count(*) from artifacts` and a hand-run scan of a public
+  site that actually has findings. Do not "fix" this by making the smoke assert
+  an artifact id; it would fail on a healthy deployment.
+- **A signed URL cannot live in a document meant to be kept.** `report.json`,
+  the SARIF projection and every finding embed *artifact ids*, and those get
+  attached to tickets and re-read next week. That is why `/api/artifacts/:id`
+  survives as a stable unsigned path and *issues* a capability rather than
+  *being* one, and why the hosted `report.html` still inlines its evidence as
+  data URIs like the CLI does instead of linking to R2. Signed URLs are for the
+  live UI (#23), which can always ask for a fresh one. Put one in a report and
+  it is a broken image five minutes later.
+- **A cache must never outlive the retention window.** The artifact route's
+  `max-age` was a year with `immutable`, which was correct while nothing
+  expired — content-addressed bytes really do not change. With a 14-day life it
+  means a browser happily showing a screenshot the deployment has deleted, which
+  is the privacy promise not being kept. `max-age` is now derived from
+  `ARTIFACT_RETENTION_DAYS`. The `302` itself is `no-store` for the mirror-image
+  reason: a cached redirect outlives the signature it points at, and the next
+  visitor gets a 403 from a URL they have no way of seeing has expired.
+- **A content-addressed upsert must move `expires_at` forward, never
+  backwards.** The same bytes are produced by a retried worker, a second
+  viewport, and a later scan of an unchanged page — each re-writing the object,
+  which refreshes the *bucket's* lifecycle clock. `onConflictDoUpdate` therefore
+  sets `greatest(artifacts.expires_at, excluded.expires_at)`. Last-write-wins
+  would move it backwards and have the API refuse an artifact still sitting in
+  the bucket. Drilled: swapping `greatest(...)` for `excluded.expires_at` turns
+  `catalog.pg.test.ts` red.
+- **Bytes first, catalog row second.** The other order leaves a row promising an
+  object that does not exist, and a report full of 404s is worse than one that
+  admits it has no evidence images. There is a test asserting a failed `put`
+  records nothing.
+- **R2 presigned URLs can only override a fixed set of response headers** —
+  content-type, content-disposition, cache-control, content-encoding,
+  content-language, expires. `x-content-type-options: nosniff` is **not** among
+  them, so the artifact bytes are served without it. What makes that acceptable
+  is that they come from `*.r2.cloudflarestorage.com`, a different origin from
+  the app, and the `ContentType` is set accurately at upload. Do not describe
+  the R2 response as carrying the proxy route's header set; it does not.
+- **`GetObject` misses arrive as `NoSuchKey` *or* a bare 404.** A key that is
+  absent raises `NoSuchKey`, but a bucket the credentials cannot list raises
+  `NotFound` instead, and both mean the same thing to a caller. `isMissing`
+  matches the class *and* `$metadata.httpStatusCode === 404`, or a missing
+  screenshot surfaces as a 500.
+- **`ArtifactReader.signedUrl` is required and may return `undefined` — that is
+  deliberate.** Making it an optional *method* would put a capability check at
+  every call site and one of them would forget. Every implementation answers the
+  question; the in-memory store answers "no", which is exactly the branch the
+  route has to handle anyway, so the byte-serving path stays exercised by the
+  default suite rather than only by whoever holds credentials.
+- **`@aws-sdk/client-s3` was nearly free here, and that is a coincidence.**
+  `@anthropic-ai/bedrock-sdk` already pulls the smithy core in, so adding the S3
+  client and the presigner added 22 packages rather than a hundred. If the
+  Bedrock provider is ever dropped, re-measure before assuming S3 is still cheap.
 - **Railway's builder rejects an unprefixed BuildKit cache-mount id.**
   `--mount=type=cache,id=pnpm-store` fails with "missing the cacheKey prefix
   from its id". The mount was removed rather than prefixed: a Dockerfile that
@@ -421,6 +505,16 @@ comparison scorecard wants a second rule engine.
   without one, and `fileParallelism` is off because they truncate shared tables.
   Locally: `docker run -d -p 5433:5432 -e POSTGRES_PASSWORD=handrail -e
   POSTGRES_USER=handrail -e POSTGRES_DB=handrail postgres:17-alpine`.
+- **`*.r2.test.ts` follows the same pattern and has *no* CI job at all.**
+  `pnpm test:r2` with the four `R2_*` variables set. Postgres can be a service
+  container; a Cloudflare bucket cannot, and CI holds no cloud credentials for
+  the same reason it holds no model API key. Everything provable without a
+  bucket is proved in `artifacts.test.ts` against `MemoryObjectStore` in the
+  ordinary `unit` job. Do not add this suite to the required checks — it would
+  block every PR forever, exactly like `eval-deterministic` would have.
+  Run it by hand after touching the bucket, `ARTIFACT_RETENTION_DAYS`, or
+  `R2ObjectStore`. It is also the only thing that can tell you the app and the
+  bucket's lifecycle rule have parted company.
 - **A `z.transform` or `z.preprocess` anywhere inside a response schema is a
   500, and a JSON Schema of `{}`.** `fastify-type-provider-zod` *encodes* the
   response (output → wire), and a unidirectional transform cannot be encoded:
@@ -829,6 +923,10 @@ pnpm typecheck     # tsc --build across the workspace
 pnpm lint          # eslint 10, typed rules
 pnpm build         # emits dist/, excludes tests
 pnpm --filter @handrail/fixture-seeded-demo dev   # the seeded app on :5178
+
+pnpm test:pg       # needs DATABASE_URL. Its own ubuntu-only CI job.
+pnpm test:r2       # needs the four R2_* variables. No CI job, on purpose.
+pnpm test:browser  # needs Chromium and the built fixture. Ubuntu-only CI job.
 ```
 
 ## Non-negotiables
@@ -845,3 +943,6 @@ that weakens one needs an ADR, not a commit message.
 4. **Honest coverage.** Untested criteria are listed, never hidden. No number out
    of 100 presented as an accessibility score.
 5. **The glass house.** Handrail's own UI passes Handrail's own scan in CI.
+6. **Screenshots are somebody else's personal data.** Private bucket, signed
+   expiring URLs, 14 days, never in a log — and neither is the signed URL that
+   fetches one. The plan's trust invariant 7; #22 is where it became real.

@@ -34,11 +34,22 @@ if (runtime.ephemeral) {
   );
 }
 
+if (!runtime.storesArtifacts) {
+  // Said out loud, because the failure it describes is invisible: every scan
+  // completes, every report validates, and not one of them has a screenshot in
+  // it. That was the hosted deployment's actual state until #22.
+  app.log.warn(
+    'R2 is not configured: scans will take no screenshots and reports will carry no ' +
+      'evidence images. Set R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY and R2_BUCKET.',
+  );
+}
+
 if (runsScans(config) && runtime.queue !== undefined) {
   await runtime.queue.work(async (payload) => {
     const result = await runScanJob(payload, {
       store: runtime.store,
       createDriver: createScanDriver,
+      createArtifactStore: runtime.createArtifactStore,
       ...(runtime.checkpointer === undefined ? {} : { checkpointer: runtime.checkpointer }),
       toolVersion: HANDRAIL_VERSION,
     });

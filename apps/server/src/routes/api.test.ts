@@ -1,8 +1,17 @@
-import { ReportSchema, ScanRecordSchema } from '@handrail/schemas';
+import {
+  ReportSchema,
+  ScanRecordSchema,
+  artifactId as toArtifactId,
+  scanId as toScanId,
+} from '@handrail/schemas';
 import { CRITERIA_COUNT } from '@handrail/wcag';
 import { afterEach, describe, expect, it } from 'vitest';
 
+import { MemoryArtifactCatalog } from '../artifacts/catalog.js';
+import { ARTIFACT_RETENTION_DAYS, SIGNED_URL_TTL_SECONDS } from '../artifacts/policy.js';
+import { CatalogArtifactReader, ScanArtifactStore } from '../artifacts/store.js';
 import { HOSTED_LIMITS } from '../security/limits.js';
+import { SigningObjectStore } from '../__test__/signing-object-store.js';
 import { completeScan, harness, testFinding, type Harness } from '../__test__/harness.js';
 
 let current: Harness | undefined;
@@ -213,6 +222,117 @@ describe('GET /api/artifacts/:id', () => {
       expect(response.statusCode).toBe(400);
     },
   );
+});
+
+describe('GET /api/scans/:id/report.html', () => {
+  /** A real 1×1 PNG: `buildEvidenceImages` reads its dimensions with sharp. */
+  const ONE_PIXEL = Buffer.from(
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+    'base64',
+  );
+
+  it('inlines evidence images as data URIs rather than linking to them', async () => {
+    // The hosted report used to render with no evidence images at all, because
+    // nothing ever wrote an artifact. Now that one exists, it is inlined — a
+    // signed URL inside a document meant to be emailed would be a broken image
+    // by the time anyone opened it.
+    const harnessed = await server();
+    harnessed.artifacts.put(toArtifactId('full_a1b2c3d4'), ONE_PIXEL);
+
+    const finding = testFinding({
+      evidence: [{ kind: 'screenshot', artifactId: toArtifactId('full_a1b2c3d4') }],
+    });
+    const { id } = await completeScan(harnessed, [finding]);
+
+    const response = await harnessed.app.inject({ url: `/api/scans/${id}/report.html` });
+    expect(response.statusCode).toBe(200);
+    expect(response.body).toContain('data:image/png;base64,');
+  });
+
+  it('still renders when the artifact has gone', async () => {
+    // A missing screenshot is a gap in the report, not a 500. Fourteen days
+    // after a scan, this is the normal case.
+    const harnessed = await server();
+    const finding = testFinding({
+      evidence: [{ kind: 'screenshot', artifactId: toArtifactId('full_deadbeef') }],
+    });
+    const { id } = await completeScan(harnessed, [finding]);
+
+    const response = await harnessed.app.inject({ url: `/api/scans/${id}/report.html` });
+    expect(response.statusCode).toBe(200);
+    expect(response.body).not.toContain('data:image/png;base64,');
+  });
+});
+
+describe('GET /api/artifacts/:id against a store that can sign', () => {
+  const png = Buffer.from('89504e470d0a1a0a', 'hex');
+  const CAPTURED = new Date('2026-08-01T00:00:00.000Z');
+  const DAY_MS = 24 * 60 * 60 * 1000;
+
+  /** A server whose artifacts live in a signing object store, as they do in production. */
+  async function signingServer(now: Date): Promise<{ harnessed: Harness; id: string }> {
+    const objects = new SigningObjectStore();
+    const catalog = new MemoryArtifactCatalog();
+    const id = await new ScanArtifactStore({
+      scanId: toScanId('scan_1'),
+      objects,
+      catalog,
+      now: () => CAPTURED,
+    }).put(png, 'full');
+
+    current = await harness({
+      artifacts: new CatalogArtifactReader({ objects, catalog, now: () => now }),
+    });
+    return { harnessed: current, id };
+  }
+
+  it('redirects to a signed, expiring URL rather than proxying the bytes', async () => {
+    // The acceptance clause. The stable path is what a report embeds; the
+    // capability it hands out is minted per request and dies in minutes.
+    const { harnessed, id } = await signingServer(new Date(CAPTURED.getTime() + DAY_MS));
+    const response = await harnessed.app.inject({ url: `/api/artifacts/${id}` });
+
+    expect(response.statusCode).toBe(302);
+    const location = String(response.headers.location);
+    expect(location).toContain('X-Amz-Signature=');
+    expect(location).toContain(`X-Amz-Expires=${String(SIGNED_URL_TTL_SECONDS)}`);
+    expect(response.rawPayload.byteLength).toBe(0);
+  });
+
+  it('never lets the redirect itself be cached', async () => {
+    // A stored redirect outlives the signature it points at, and the next
+    // visitor gets a 403 from a URL they cannot see has expired.
+    const { harnessed, id } = await signingServer(new Date(CAPTURED.getTime() + DAY_MS));
+    const response = await harnessed.app.inject({ url: `/api/artifacts/${id}` });
+    expect(response.headers['cache-control']).toBe('no-store');
+    expect(response.headers['referrer-policy']).toBe('no-referrer');
+  });
+
+  it('shortens the capability so it cannot outlive the artifact', async () => {
+    const oneMinuteLeft = new Date(
+      CAPTURED.getTime() + ARTIFACT_RETENTION_DAYS * DAY_MS - 60_000,
+    );
+    const { harnessed, id } = await signingServer(oneMinuteLeft);
+    const response = await harnessed.app.inject({ url: `/api/artifacts/${id}` });
+    expect(response.headers.location).toContain('X-Amz-Expires=60');
+  });
+
+  it('410s once retention has run out, rather than 404', async () => {
+    // "Deleted on a schedule" and "you typed the id wrong" call for different
+    // things from a client, and one of them should stop retrying.
+    const past = new Date(CAPTURED.getTime() + (ARTIFACT_RETENTION_DAYS + 1) * DAY_MS);
+    const { harnessed, id } = await signingServer(past);
+    const response = await harnessed.app.inject({ url: `/api/artifacts/${id}` });
+
+    expect(response.statusCode).toBe(410);
+    expect(response.json<{ code: string }>().code).toBe('artifact-expired');
+  });
+
+  it('404s an id the catalog never heard of', async () => {
+    const { harnessed } = await signingServer(new Date(CAPTURED.getTime() + DAY_MS));
+    const response = await harnessed.app.inject({ url: '/api/artifacts/full_deadbeef' });
+    expect(response.statusCode).toBe(404);
+  });
 });
 
 describe('GET /api/meta', () => {

@@ -25,7 +25,8 @@
     "test:coverage": "vitest run --coverage",
     "prepare": "lefthook install || echo 'lefthook not installed \u2014 no git checkout, which is expected inside a container'",
     "test:browser": "vitest run --config vitest.browser.config.ts",
-    "test:pg": "vitest run --config vitest.pg.config.ts"
+    "test:pg": "vitest run --config vitest.pg.config.ts",
+    "test:r2": "vitest run --config vitest.r2.config.ts"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

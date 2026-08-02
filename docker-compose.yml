@@ -60,6 +60,15 @@ services:
       DATABASE_URL: postgresql://handrail:handrail@postgres:5432/handrail
       # Set one to bypass the rate limits while poking at a local instance.
       # ADMIN_TOKEN: ""
+      #
+      # Screenshots go to R2 (#22). Left unset here, so a local `compose up`
+      # scans without capturing any — which is the point of the warning it
+      # prints at boot. Pass all four through to rehearse the real thing:
+      #   R2_ACCOUNT_ID: ${R2_ACCOUNT_ID}
+      #   R2_ACCESS_KEY_ID: ${R2_ACCESS_KEY_ID}
+      #   R2_SECRET_ACCESS_KEY: ${R2_SECRET_ACCESS_KEY}
+      #   R2_BUCKET: ${R2_BUCKET}
+      # All four or none — a partial set fails at boot, on purpose.
     depends_on:
       postgres:
         condition: service_healthy

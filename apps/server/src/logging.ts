@@ -16,37 +16,59 @@ import type { Config } from './config.js';
  * medical record, someone's address. The redaction list below is deliberately
  * broad and the serializer below is deliberately blunt: a Buffer never gets
  * logged, whatever key it arrived under.
+ *
+ * **Neither does a signed URL** (#22). A presigned R2 link is a bearer token
+ * for those same pixels: anyone who reads it out of a log can fetch the
+ * screenshot until it expires, with no credential of their own. It is scrubbed
+ * by recognising the signature in the string, not by trusting a key name.
  */
 export const REDACTED_PATHS = [
   'req.headers.authorization',
   'req.headers.cookie',
   'req.headers["x-admin-token"]',
   'res.headers["set-cookie"]',
+  'res.headers.location',
   'screenshot',
   'artifact',
   'artifactBytes',
   'bytes',
   'image',
   'png',
+  'signedUrl',
   '*.screenshot',
   '*.bytes',
   '*.png',
+  '*.signedUrl',
   'DATABASE_URL',
   'ADMIN_TOKEN',
   'ANTHROPIC_API_KEY',
+  'R2_ACCESS_KEY_ID',
+  'R2_SECRET_ACCESS_KEY',
 ];
 
 /**
- * Binary is never data worth logging.
+ * A presigned S3/R2 URL, however it was spelled.
+ *
+ * SigV4 puts `X-Amz-Signature` in the query string of every presigned URL, and
+ * some clients lowercase it. That one parameter is the capability; matching on
+ * it catches the URL wherever it came from and whatever key it arrived under.
+ */
+const SIGNED_URL = /[?&]x-amz-signature=/i;
+
+/**
+ * Neither binary nor a bearer capability is data worth logging.
  *
  * A `Buffer` in a log line is at best thousands of unreadable bytes and at
- * worst a screenshot. The rule is applied by type rather than by key name,
- * because the key that leaks it will be the one nobody added to the list.
+ * worst a screenshot; a presigned URL is a five-minute password for the same
+ * image. Both rules are applied by recognising the *value* rather than the key
+ * it arrived under, because the key that leaks one will be the key nobody added
+ * to the list.
  */
-export function replaceBinary(value: unknown): unknown {
+export function scrubUnloggable(value: unknown): unknown {
   if (Buffer.isBuffer(value)) return `[Buffer ${String(value.byteLength)} bytes]`;
   if (value instanceof Uint8Array) return `[Uint8Array ${String(value.byteLength)} bytes]`;
-  if (Array.isArray(value)) return value.map(replaceBinary);
+  if (typeof value === 'string' && SIGNED_URL.test(value)) return '[signed url redacted]';
+  if (Array.isArray(value)) return value.map(scrubUnloggable);
 
   // Only plain objects are rebuilt. Recursing into every object would flatten
   // class instances into their own enumerable properties — which silently
@@ -55,7 +77,7 @@ export function replaceBinary(value: unknown): unknown {
   // go the same way, losing its stack.
   if (isPlainObject(value)) {
     return Object.fromEntries(
-      Object.entries(value).map(([key, item]) => [key, replaceBinary(item)]),
+      Object.entries(value).map(([key, item]) => [key, scrubUnloggable(item)]),
     );
   }
   return value;
@@ -81,7 +103,13 @@ export function loggerOptions(config: Config): LoggerOptions {
     hooks: {
       logMethod(args, method) {
         const [first, ...rest] = args;
-        method.apply(this, [replaceBinary(first), ...rest] as Parameters<typeof method>);
+        // The message string is scrubbed too, not just the merge object: a
+        // signed URL interpolated into `` `redirecting to ${url}` `` is the
+        // same leak by a route nothing else covers.
+        method.apply(
+          this,
+          [scrubUnloggable(first), ...rest.map(scrubUnloggable)] as Parameters<typeof method>,
+        );
       },
     },
     base: { service: 'handrail-server', role: config.SERVICE_ROLE },

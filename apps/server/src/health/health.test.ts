@@ -9,7 +9,7 @@ import { loadConfig } from '../config.js';
 import { loggerOptions } from '../logging.js';
 import { MemoryArtifactReader, MemoryScanStore } from '../store/memory.js';
 import { cacheSuccess, runReadiness, type ReadinessCheck } from './checks.js';
-import { chromiumCheck } from './probes.js';
+import { chromiumCheck, objectStorageCheck } from './probes.js';
 
 let app: FastifyInstance | undefined;
 
@@ -139,6 +139,39 @@ describe('chromiumCheck', () => {
       launch: () => Promise.reject(new Error("Executable doesn't exist")),
     });
     await expect(check.run()).rejects.toThrow(/Executable/);
+  });
+});
+
+describe('objectStorageCheck', () => {
+  it('names the bucket it reached', async () => {
+    const check = objectStorageCheck({ head: () => Promise.resolve(), bucketName: 'shots' });
+    expect(await check.run()).toContain('shots');
+  });
+
+  it('fails when the bucket cannot be reached', async () => {
+    // A deployment that was told where its bucket is and cannot reach it will
+    // complete every scan and produce a report with nothing in it. `/readyz`
+    // gates the platform healthcheck, which is what keeps that container from
+    // being promoted over the one that works.
+    const check = objectStorageCheck({
+      head: () => Promise.reject(new Error('AccessDenied')),
+      bucketName: 'shots',
+    });
+    await expect(check.run()).rejects.toThrow(/AccessDenied/);
+  });
+
+  it('caches a success but never a failure', async () => {
+    let heads = 0;
+    const check = objectStorageCheck({
+      head: () => {
+        heads += 1;
+        return Promise.resolve();
+      },
+      bucketName: 'shots',
+    });
+    await check.run();
+    await check.run();
+    expect(heads).toBe(1);
   });
 });
 

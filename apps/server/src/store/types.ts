@@ -95,12 +95,26 @@ export interface ScanStore {
 /**
  * Binary artifacts — screenshots, crops.
  *
- * Deliberately the same shape as `@handrail/engine`'s `ArtifactStore`, so the
- * store the scan writes into is the store the API reads from without an adapter
- * in between. #22 puts R2 behind it.
+ * Deliberately the same read shape as `@handrail/engine`'s `ArtifactStore`, so
+ * the store the scan writes into is the store the API reads from without an
+ * adapter in between. #22 puts R2 behind it.
  */
 export interface ArtifactReader {
   get(id: ArtifactId): Promise<Buffer>;
+  /**
+   * A time-limited URL for these bytes, or `undefined` when this store cannot
+   * mint one.
+   *
+   * Required, not optional — every implementation has to answer the question,
+   * and `undefined` is a real answer that the route handles rather than a
+   * capability check somebody forgets to write. The in-memory store returns it;
+   * the R2-backed one returns a presigned GET good for a few minutes.
+   *
+   * Throws {@link ArtifactNotFoundError} or {@link ArtifactExpiredError} for
+   * the same reasons {@link ArtifactReader.get} does: refusing to mint a
+   * capability is part of the retention policy, not a rendering detail.
+   */
+  signedUrl(id: ArtifactId): Promise<string | undefined>;
 }
 
 /** Thrown by a reader when the id is not one it holds. Routes turn this into a 404. */
@@ -111,5 +125,25 @@ export class ArtifactNotFoundError extends Error {
     super(`no such artifact: ${id}`);
     this.name = 'ArtifactNotFoundError';
     this.artifactId = id;
+  }
+}
+
+/**
+ * Thrown when the artifact existed and its retention window has closed.
+ *
+ * Distinct from "not found", and routes answer it with `410 Gone`: a screenshot
+ * that has aged out is not a typo in a URL, and a client that cannot tell the
+ * two apart will keep retrying one of them forever. It is also the honest thing
+ * to say about a deployment that deletes personal data on a schedule.
+ */
+export class ArtifactExpiredError extends Error {
+  readonly artifactId: string;
+  readonly expiresAt: Date;
+
+  constructor(id: string, expiresAt: Date) {
+    super(`artifact ${id} expired at ${expiresAt.toISOString()}`);
+    this.name = 'ArtifactExpiredError';
+    this.artifactId = id;
+    this.expiresAt = expiresAt;
   }
 }

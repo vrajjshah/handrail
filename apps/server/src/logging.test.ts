@@ -9,7 +9,7 @@ import {
   correlationIdFrom,
   correlationIdFromUrl,
   loggerOptions,
-  replaceBinary,
+  scrubUnloggable,
 } from './logging.js';
 
 /** Capture what actually reaches the transport, which is the only thing that matters. */
@@ -32,18 +32,18 @@ function logger(): { lines: Record<string, unknown>[]; log: Logger } {
   return { lines, log: pino(loggerOptions(config), stream) };
 }
 
-describe('replaceBinary', () => {
+describe('scrubUnloggable', () => {
   it('replaces a Buffer with its size, whatever key it arrived under', () => {
     // By type, not by key name: the key that leaks a screenshot will be the one
     // nobody thought to add to the redaction list.
-    const replaced = replaceBinary({
+    const replaced = scrubUnloggable({
       surprise: Buffer.from('a screenshot of someone’s inbox'),
     }) as Record<string, string>;
     expect(replaced.surprise).toMatch(/^\[Buffer \d+ bytes\]$/);
   });
 
   it('reaches into nested objects and arrays', () => {
-    const replaced = replaceBinary({
+    const replaced = scrubUnloggable({
       evidence: [{ image: Buffer.from('png') }, { image: new Uint8Array([1, 2, 3]) }],
     }) as { evidence: { image: string }[] };
     expect(replaced.evidence[0]?.image).toContain('Buffer');
@@ -67,21 +67,51 @@ describe('replaceBinary', () => {
         return this.#verb;
       }
     }
-    const replaced = replaceBinary(new Request('GET'));
+    const replaced = scrubUnloggable(new Request('GET'));
     expect(replaced).toBeInstanceOf(Request);
     expect((replaced as Request).method).toBe('GET');
 
-    const error = replaceBinary(new Error('boom'));
+    const error = scrubUnloggable(new Error('boom'));
     expect(error).toBeInstanceOf(Error);
   });
 
   it('leaves ordinary values alone', () => {
-    expect(replaceBinary({ n: 1, s: 'x', b: true, nil: null })).toEqual({
+    expect(scrubUnloggable({ n: 1, s: 'x', b: true, nil: null })).toEqual({
       n: 1,
       s: 'x',
       b: true,
       nil: null,
     });
+  });
+
+  it('redacts a presigned URL by recognising the signature, not the key', () => {
+    // A presigned R2 URL is a bearer capability for a screenshot: whoever reads
+    // it out of a log can fetch someone's inbox until it expires, with no
+    // credential of their own. Matched on `X-Amz-Signature`, so it is caught
+    // whatever key it arrived under and however it was capitalised.
+    const url =
+      'https://acct.r2.cloudflarestorage.com/bucket/artifacts/full_a1b2c3d4.png' +
+      '?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Expires=300&X-Amz-Signature=deadbeefcafe';
+
+    for (const shape of [
+      { location: url },
+      { anythingAtAll: url },
+      { nested: { deep: [url] } },
+    ]) {
+      expect(JSON.stringify(scrubUnloggable(shape)), 'leaked a signature').not.toContain(
+        'deadbeefcafe',
+      );
+    }
+
+    expect(scrubUnloggable(url.replace('X-Amz-Signature', 'x-amz-signature'))).toBe(
+      '[signed url redacted]',
+    );
+  });
+
+  it('leaves an unsigned artifact URL alone', () => {
+    // The stable path is not a capability and is worth having in a log line.
+    const path = 'https://handrail.example/api/artifacts/full_a1b2c3d4';
+    expect(scrubUnloggable({ href: path })).toEqual({ href: path });
   });
 });
 
@@ -138,10 +168,25 @@ describe('the configured logger', () => {
     for (const line of lines) expect(line.correlationId).toBe('scan_9f1c');
   });
 
+  it('never writes a signed URL to a log line, in the object or in the message', () => {
+    const { lines, log } = logger();
+    const url =
+      'https://acct.r2.cloudflarestorage.com/b/artifacts/full_a1.png?X-Amz-Signature=deadbeefcafe';
+
+    log.info({ signedUrl: url, scanId: 'scan_1' }, 'issued an artifact url');
+    log.info(`redirecting to ${url}`);
+
+    for (const line of lines) {
+      expect(JSON.stringify(line), 'leaked a signature').not.toContain('deadbeefcafe');
+    }
+    expect(lines[0]?.scanId).toBe('scan_1');
+  });
+
   it('lists the paths it redacts, so the list is reviewable', () => {
     expect(REDACTED_PATHS).toContain('req.headers.authorization');
     expect(REDACTED_PATHS).toContain('screenshot');
     expect(REDACTED_PATHS).toContain('ANTHROPIC_API_KEY');
+    expect(REDACTED_PATHS).toContain('R2_SECRET_ACCESS_KEY');
   });
 });
 

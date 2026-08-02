@@ -18,6 +18,20 @@ export interface ArtifactStore {
   get(id: ArtifactId): Promise<Buffer>;
 }
 
+/**
+ * The id these bytes have, in every store.
+ *
+ * Content-addressed: identical screenshots across a scan are stored once, a
+ * re-capture of an unchanged page produces the same id, and a store can make
+ * its writes idempotent because the key is a function of the content. Exported
+ * because the hosted store derives keys from it too, and two implementations of
+ * "the id for these bytes" is one implementation too many.
+ */
+export function contentAddressedId(bytes: Buffer, kind: string): ArtifactId {
+  const digest = createHash('sha256').update(bytes).digest('hex').slice(0, 16);
+  return artifactId(`${kind}_${digest}`);
+}
+
 export class FileSystemArtifactStore implements ArtifactStore {
   private readonly directory: string;
 
@@ -27,10 +41,7 @@ export class FileSystemArtifactStore implements ArtifactStore {
 
   async put(bytes: Buffer, kind: string): Promise<ArtifactId> {
     await mkdir(this.directory, { recursive: true });
-    // Content-addressed: identical screenshots across a scan are stored once,
-    // and a re-capture of an unchanged page produces the same id.
-    const digest = createHash('sha256').update(bytes).digest('hex').slice(0, 16);
-    const id = artifactId(`${kind}_${digest}`);
+    const id = contentAddressedId(bytes, kind);
     await writeFile(join(this.directory, `${id}.png`), bytes);
     return id;
   }
@@ -45,8 +56,7 @@ export class MemoryArtifactStore implements ArtifactStore {
   private readonly items = new Map<string, Buffer>();
 
   put(bytes: Buffer, kind: string): Promise<ArtifactId> {
-    const digest = createHash('sha256').update(bytes).digest('hex').slice(0, 16);
-    const id = artifactId(`${kind}_${digest}`);
+    const id = contentAddressedId(bytes, kind);
     this.items.set(id, bytes);
     return Promise.resolve(id);
   }
