@@ -1,16 +1,21 @@
-import { launchChromium, type Browser } from '@handrail/engine';
+import { launchChromium, type ArtifactStore, type Browser } from '@handrail/engine';
 import {
   createPlaywrightDriver,
   createPostgresCheckpointer,
   type ScanCheckpointer,
   type ScanDriver,
 } from '@handrail/orchestrator';
+import type { ScanId } from '@handrail/schemas';
 
-import type { Config } from './config.js';
+import type { ArtifactCatalog } from './artifacts/catalog.js';
+import { PostgresArtifactCatalog } from './artifacts/postgres-catalog.js';
+import { R2ObjectStore } from './artifacts/r2.js';
+import { CatalogArtifactReader, ScanArtifactStore } from './artifacts/store.js';
+import { r2ConfigFrom, type Config } from './config.js';
 import { connect, type DatabaseHandle } from './db/client.js';
 import { MemoryEventBus, type ScanEventBus } from './events/bus.js';
 import type { ReadinessCheck } from './health/checks.js';
-import { chromiumCheck, databaseCheck, queueCheck } from './health/probes.js';
+import { chromiumCheck, databaseCheck, objectStorageCheck, queueCheck } from './health/probes.js';
 import { PostgresEventBus } from './events/postgres-bus.js';
 import { MemoryArtifactReader, MemoryScanStore } from './store/memory.js';
 import { PostgresScanStore } from './store/postgres.js';
@@ -29,6 +34,14 @@ import { PgBossQueue, type ScanQueue } from './worker/queue.js';
 export interface Runtime {
   store: ScanStore;
   artifacts: ArtifactReader;
+  /**
+   * The store a scan writes screenshots into, built per scan.
+   *
+   * `undefined` when this deployment has no object storage — the scan then
+   * takes no screenshots and the report says so, which is what a developer's
+   * machine looks like and what every hosted scan looked like before #22.
+   */
+  createArtifactStore: (scanId: ScanId) => ArtifactStore | undefined;
   queue: ScanQueue | undefined;
   eventBus: ScanEventBus;
   /** What `/readyz` proves for this deployment. */
@@ -37,6 +50,8 @@ export interface Runtime {
   database: DatabaseHandle | undefined;
   /** True when nothing survives a restart. Reported, never hidden. */
   ephemeral: boolean;
+  /** True when screenshots are captured and kept. Reported at boot and by `/readyz`. */
+  storesArtifacts: boolean;
   close: () => Promise<void>;
 }
 
@@ -57,6 +72,10 @@ export function buildRuntime(config: Config): Runtime {
     return {
       store: new MemoryScanStore({ bus: eventBus }),
       artifacts: new MemoryArtifactReader(),
+      // No database means no catalog to write a row into, so no screenshots
+      // either. The two travel together: bytes with nothing pointing at them
+      // are bytes nobody can find and nobody will delete.
+      createArtifactStore: () => undefined,
       queue: undefined,
       eventBus,
       // No database and no queue to check. Chromium still is: without it this
@@ -65,6 +84,7 @@ export function buildRuntime(config: Config): Runtime {
       checkpointer: undefined,
       database: undefined,
       ephemeral: true,
+      storesArtifacts: false,
       close: () => eventBus.close(),
     };
   }
@@ -83,15 +103,36 @@ export function buildRuntime(config: Config): Runtime {
     pool: database.pool,
   });
 
+  // Throws on a partial set; `assertRunnable` has already run it at boot.
+  const r2 = r2ConfigFrom(config);
+  const objects: R2ObjectStore | undefined = r2 === undefined ? undefined : new R2ObjectStore(r2);
+  const catalog: ArtifactCatalog = new PostgresArtifactCatalog(database.db);
+
   return {
     store: new PostgresScanStore(database.db, { bus: eventBus }),
-    artifacts: new MemoryArtifactReader(),
+    artifacts:
+      objects === undefined
+        ? new MemoryArtifactReader()
+        : new CatalogArtifactReader({ objects, catalog }),
+    createArtifactStore:
+      objects === undefined
+        ? () => undefined
+        : (scanId) => new ScanArtifactStore({ scanId, objects, catalog }),
     queue,
     eventBus,
-    readiness: [databaseCheck(database.db), queueCheck(queue), chromiumCheck()],
+    readiness: [
+      databaseCheck(database.db),
+      queueCheck(queue),
+      chromiumCheck(),
+      // Only when it is configured. A deployment without object storage is not
+      // unready; one that was told where its bucket is and cannot reach it is,
+      // because every report it produces will be missing its evidence.
+      ...(objects === undefined ? [] : [objectStorageCheck(objects)]),
+    ],
     checkpointer: createPostgresCheckpointer(config.DATABASE_URL),
     database,
     ephemeral: false,
+    storesArtifacts: objects !== undefined,
     close: async () => {
       await queue.stop();
       await eventBus.close();

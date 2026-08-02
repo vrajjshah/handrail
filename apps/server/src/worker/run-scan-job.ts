@@ -1,3 +1,4 @@
+import type { ArtifactStore } from '@handrail/engine';
 import { isTerminalEvent, type Finding, type ScanEvent, type ScanId } from '@handrail/schemas';
 import {
   streamScan,
@@ -17,6 +18,16 @@ export interface RunScanJobDeps {
   /** Built per job: a browser is not something to hold open between scans. */
   createDriver: () => Promise<{ driver: ScanDriver; close: () => Promise<void> }>;
   checkpointer?: ScanCheckpointer;
+  /**
+   * Where this scan's screenshots go. Built per scan, because the catalog row
+   * records which scan produced each artifact.
+   *
+   * Omit — or return `undefined` — and the scan takes no screenshots at all.
+   * That is the honest shape for a deployment with no object storage: the
+   * report says it has no evidence images rather than linking to bytes nobody
+   * kept. It was also, until this issue, the *only* shape the hosted scan had.
+   */
+  createArtifactStore?: (scanId: ScanId) => ArtifactStore | undefined;
   toolVersion: string;
   now?: () => Date;
   /** How many events to batch before writing. Small: the SSE stream reads these. */
@@ -65,9 +76,11 @@ export async function runScanJob(
   });
 
   const handle = await deps.createDriver();
+  const artifacts = deps.createArtifactStore?.(scanId);
   const graphDeps: ScanGraphDeps = {
     driver: handle.driver,
     ...(deps.checkpointer === undefined ? {} : { checkpointer: deps.checkpointer }),
+    ...(artifacts === undefined ? {} : { artifacts }),
   };
 
   const buffer: ScanEvent[] = [];

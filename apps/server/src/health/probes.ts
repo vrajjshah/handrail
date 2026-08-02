@@ -34,6 +34,36 @@ export function queueCheck(queue: ScanQueue): ReadinessCheck {
 }
 
 /**
+ * The artifact bucket exists and these credentials can reach it.
+ *
+ * Registered only when R2 is configured. The distinction matters: a deployment
+ * with no object storage takes no screenshots and is perfectly ready, while one
+ * that was told where its bucket is and cannot reach it will complete every
+ * scan and produce a report with no evidence in it. `/readyz` gates the
+ * platform healthcheck, so this is what keeps a container with bad R2
+ * credentials from being promoted over one that works.
+ *
+ * Cached on success like the Chromium check, and for the same reason: a
+ * platform polls readiness far more often than a bucket changes.
+ */
+export function objectStorageCheck(
+  store: { head: () => Promise<void>; bucketName: string },
+  options: { ttlMs?: number } = {},
+): ReadinessCheck {
+  return cacheSuccess(
+    {
+      name: 'object-storage',
+      timeoutMs: 5_000,
+      run: async () => {
+        await store.head();
+        return `bucket ${store.bucketName} reachable`;
+      },
+    },
+    options.ttlMs ?? 30_000,
+  );
+}
+
+/**
  * Chromium actually launches.
  *
  * The check that makes `/readyz` mean something. Everything else can be green
