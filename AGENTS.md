@@ -272,11 +272,16 @@ real Chromium, `https://example.com`):
 **Three gaps worth knowing before picking up #23:**
 
 1. **#22 has not been rehearsed against the live deployment.** The code path is
-   covered end to end without credentials, and `pnpm test:r2` covers the bucket
-   — but nobody has yet set the four `R2_*` service variables on Railway,
-   watched `/readyz` report `object-storage`, run a real hosted scan and opened
-   its `report.html` with images in it. Do that before #23 builds a report
-   screen on top of it. OPERATIONS.md §8 is the runbook.
+   covered end to end without credentials and `pnpm test:r2` covers the bucket,
+   but nobody has yet watched `/readyz` report `object-storage`, run a real
+   hosted scan and opened its `report.html` with images in it. The four `R2_*`
+   service variables were already set on Railway before this landed, so the
+   first deploy of `main` after the merge starts writing screenshots by itself —
+   and if the credentials or the bucket are wrong, the new `object-storage`
+   readiness check fails and Railway keeps the previous container serving rather
+   than promoting a deployment that would produce evidence-free reports. Confirm
+   it by hand anyway, before #23 builds a report screen on top of it.
+   OPERATIONS.md §8 is the runbook.
 2. **`eval_runs` exists and is unused.** Deliberate — the table is cheap now and
    awkward to retrofit around live data. Phase 3 fills it.
 3. **DNS rebinding is not covered** by the SSRF preflight (gotcha below). The
