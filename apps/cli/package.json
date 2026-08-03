@@ -35,7 +35,7 @@
     "@handrail/model": "workspace:*",
     "@handrail/orchestrator": "workspace:*",
     "@handrail/schemas": "workspace:*",
-    "execa": "^9.6.0",
+    "execa": "^10.0.1",
     "zod": "^4.4.3"
   },
   "devDependencies": {
