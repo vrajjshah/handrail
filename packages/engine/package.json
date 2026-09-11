@@ -31,7 +31,7 @@
     "@handrail/wcag": "workspace:*",
     "axe-core": "^4.12.1",
     "playwright": "^1.61.1",
-    "sharp": "^0.35.3",
+    "sharp": "^0.35.4",
     "zod": "^4.4.3"
   }
 }
